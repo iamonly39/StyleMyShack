@@ -572,6 +572,233 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   font-size: 0.85rem;
 }
 
+/* ─── Benjamin Moore Swatch Panel ────────────────────────────────────────── */
+.room-detail-grid {
+  /* override to single col so swatch panel sits under photos */
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas:
+    "photos recs"
+    "swatches recs";
+  align-items: start;
+}
+
+.photo-panel   { grid-area: photos; }
+.swatch-panel  { grid-area: swatches; }
+.rec-panel     { grid-area: recs; }
+
+@media (max-width: 768px) {
+  .room-detail-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "photos"
+      "swatches"
+      "recs";
+  }
+}
+
+.swatch-panel {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 2px 8px var(--shadow);
+  overflow: hidden;
+}
+
+.swatch-panel-header {
+  background: var(--cream);
+  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.swatch-panel-title {
+  font-family: system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.swatch-panel-hint {
+  font-family: system-ui, sans-serif;
+  font-size: 0.78rem;
+  color: var(--stone);
+}
+
+/* Search box */
+.swatch-search-wrap {
+  padding: 0.75rem 1rem 0;
+  position: relative;
+}
+
+.swatch-search {
+  width: 100%;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.88rem;
+  color: var(--text);
+  background: white;
+}
+
+.swatch-search:focus {
+  outline: none;
+  border-color: var(--bark-light);
+  box-shadow: 0 0 0 3px rgba(107, 79, 58, 0.1);
+}
+
+/* Dropdown results */
+.swatch-results {
+  position: absolute;
+  left: 1rem;
+  right: 1rem;
+  top: calc(100% - 0.25rem);
+  background: white;
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 20;
+  box-shadow: 0 6px 20px var(--shadow);
+  display: none;
+}
+
+.swatch-results.open { display: block; }
+
+.swatch-result-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.85rem;
+  cursor: pointer;
+  transition: background var(--transition);
+  font-family: system-ui, sans-serif;
+  font-size: 0.88rem;
+}
+
+.swatch-result-item:hover { background: var(--cream); }
+
+.swatch-result-item.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.swatch-result-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,0,0,0.1);
+  flex-shrink: 0;
+}
+
+.swatch-result-name { font-weight: 600; color: var(--text); }
+.swatch-result-num  { color: var(--text-muted); font-size: 0.8rem; margin-left: auto; }
+
+/* 2×2 grid */
+.swatch-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+
+.swatch-cell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 0.6rem 0.7rem;
+  overflow: hidden;
+}
+
+.swatch-cell-color {
+  position: absolute;
+  inset: 0;
+}
+
+.swatch-cell-info {
+  position: relative;
+  z-index: 1;
+  /* legible text on any color via translucent pill */
+}
+
+.swatch-cell-name,
+.swatch-cell-num {
+  display: block;
+  font-family: system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.3;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.swatch-cell-name {
+  background: rgba(0,0,0,0.45);
+  color: #fff;
+  margin-bottom: 0.2rem;
+}
+
+.swatch-cell-num {
+  background: rgba(0,0,0,0.3);
+  color: rgba(255,255,255,0.88);
+  font-weight: 400;
+}
+
+/* Remove button (edit mode) */
+.swatch-remove-btn {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.5);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: background var(--transition);
+}
+
+.swatch-remove-btn:hover { background: rgba(180,30,30,0.85); }
+
+/* Empty swatch slot */
+.swatch-cell-empty {
+  background: var(--cream);
+  border: 2px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  color: var(--stone);
+  font-size: 1.4rem;
+  cursor: default;
+}
+
+.swatch-cell-empty.addable {
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.swatch-cell-empty.addable:hover {
+  background: #f0e8dc;
+  border-color: var(--bark-light);
+  color: var(--bark);
+}
+
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .paint-swatches { grid-template-columns: 1fr; }
