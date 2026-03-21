@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Room &mdash; StyleMyShack</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="header-back">&#8592; All Rooms</a>
+      <span class="logo">Style<span>MyShack</span></span>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="container">
+      <h1 id="room-title">Room</h1>
+      <p id="room-description"></p>
+    </div>
+  </section>
+
+  <main>
+    <div class="room-detail">
+      <div class="container">
+        <div class="room-detail-grid">
+
+          <!-- Photo Panel -->
+          <div class="photo-panel">
+            <div class="photo-tabs">
+              <button class="photo-tab active" data-tab="actual">Actual Photos</button>
+              <button class="photo-tab" data-tab="model3d">3D Model</button>
+              <button class="photo-tab" data-tab="floorPlan">Floor Plan</button>
+            </div>
+
+            <div class="photo-content active" id="tab-actual">
+              <div id="gallery-actual"></div>
+            </div>
+
+            <div class="photo-content" id="tab-model3d">
+              <div id="gallery-model3d"></div>
+            </div>
+
+            <div class="photo-content" id="tab-floorPlan">
+              <div id="gallery-floorPlan"></div>
+            </div>
+          </div>
+
+          <!-- Recommendations Panel -->
+          <div class="rec-panel">
+            <div class="rec-panel-header">
+              <h2>Designer Recommendations</h2>
+              <button class="edit-toggle-btn" id="edit-toggle">Edit</button>
+            </div>
+
+            <div class="rec-body" id="rec-body">
+              <!-- Populated by room.js -->
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <p>StyleMyShack &mdash; Interior design, room by room.</p>
+  </footer>
+
+  <!-- Password Modal -->
+  <div class="modal-overlay" id="password-modal">
+    <div class="modal">
+      <h3>Designer Access</h3>
+      <p>Enter the designer password to enable editing.</p>
+      <p class="modal-error" id="modal-error">Incorrect password. Try again.</p>
+      <input type="password" id="password-input" placeholder="Password" />
+      <div class="modal-btns">
+        <button class="modal-cancel" id="modal-cancel">Cancel</button>
+        <button class="modal-confirm" id="modal-confirm">Unlock</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Save Banner -->
+  <div class="save-banner" id="save-banner">Recommendations saved to JSON!</div>
+
+  <script src="js/room.js"></script>
+</body>
+</html>
