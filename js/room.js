@@ -5,6 +5,21 @@ let allRooms  = null;
 let bmColors  = [];
 let editMode  = false;
 
+// localStorage key for photos: "photos_<roomId>_<tab>"
+function photosKey(roomId, tab) { return `photos_${roomId}_${tab}`; }
+
+// Load photos for a given tab (localStorage wins over rooms.json defaults)
+function loadPhotos(roomId, tab) {
+  const stored = localStorage.getItem(photosKey(roomId, tab));
+  if (stored) return JSON.parse(stored);
+  return roomData.photos[tab] || [];
+}
+
+// Persist photos array to localStorage
+function savePhotos(roomId, tab, photos) {
+  localStorage.setItem(photosKey(roomId, tab), JSON.stringify(photos));
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────
 async function init() {
   const params = new URLSearchParams(window.location.search);
@@ -25,7 +40,6 @@ async function init() {
     return;
   }
 
-  // Ensure swatches array exists
   roomData.recommendations.swatches = roomData.recommendations.swatches || [];
 
   document.title = roomData.name + ' — StyleMyShack';
@@ -33,9 +47,9 @@ async function init() {
   document.getElementById('room-description').textContent = roomData.description;
   sessionStorage.setItem('cabinName', data.cabinName);
 
-  renderGallery('actual',    roomData.photos.actual,    '📷', 'No actual photos yet. Add photos to images/rooms/' + roomId + '/');
-  renderGallery('model3d',   roomData.photos.model3d,   '🏗️', 'No 3D model photos yet.');
-  renderGallery('floorPlan', roomData.photos.floorPlan, '📐', 'No floor plan uploaded yet.');
+  renderGallery('actual');
+  renderGallery('model3d');
+  renderGallery('floorPlan');
 
   renderSwatches();
   renderRecommendations();
@@ -43,41 +57,117 @@ async function init() {
   setupEditToggle();
   setupPasswordModal();
   setupSwatchSearch();
+  setupUploadListeners();
 }
 
 // ─── Gallery ──────────────────────────────────────────────────────────────
-function renderGallery(type, photos, icon, emptyMsg) {
-  const container = document.getElementById('gallery-' + type);
+const GALLERY_ICONS = {
+  actual:    { icon: '📷', empty: 'No actual photos yet.' },
+  model3d:   { icon: '🏗️',  empty: 'No 3D model photos yet.' },
+  floorPlan: { icon: '📐', empty: 'No floor plan uploaded yet.' }
+};
+
+function renderGallery(tab) {
+  const photos    = loadPhotos(roomData.id, tab);
+  const container = document.getElementById('gallery-' + tab);
+  const meta      = GALLERY_ICONS[tab];
+
   if (!photos || photos.length === 0) {
     container.innerHTML = `
       <div class="photo-placeholder">
-        <span class="icon">${icon}</span>
-        <p>${emptyMsg}</p>
+        <span class="icon">${meta.icon}</span>
+        <p>${meta.empty}${editMode ? ' Use the button below to upload.' : ''}</p>
       </div>`;
     return;
   }
 
   let activeIdx = 0;
+
   function buildGallery() {
+    const photos = loadPhotos(roomData.id, tab);   // re-read in case deletion happened
+
     container.innerHTML = `
-      <img class="photo-main" src="${photos[activeIdx]}" alt="Room photo ${activeIdx + 1}" />
+      <div class="photo-main-wrap">
+        <img class="photo-main" src="${photos[activeIdx]}" alt="Photo ${activeIdx + 1}" />
+        ${editMode ? `
+          <button class="photo-main-delete" data-tab="${tab}" data-idx="${activeIdx}"
+                  title="Delete this photo">Delete</button>` : ''}
+      </div>
       ${photos.length > 1 ? `
         <div class="photo-thumbs">
           ${photos.map((src, i) => `
-            <img class="photo-thumb ${i === activeIdx ? 'active' : ''}"
-                 src="${src}" alt="Thumbnail ${i + 1}"
-                 data-idx="${i}" />
-          `).join('')}
+            <div class="photo-thumb-wrap">
+              <img class="photo-thumb ${i === activeIdx ? 'active' : ''}"
+                   src="${src}" alt="Thumbnail ${i + 1}" data-idx="${i}" />
+              ${editMode ? `<button class="photo-delete-btn" data-tab="${tab}" data-idx="${i}"
+                                    title="Delete">✕</button>` : ''}
+            </div>`).join('')}
         </div>` : ''}
     `;
+
+    // Thumbnail navigation
     container.querySelectorAll('.photo-thumb').forEach(thumb => {
       thumb.addEventListener('click', () => {
         activeIdx = parseInt(thumb.dataset.idx);
         buildGallery();
       });
     });
+
+    // Delete buttons
+    container.querySelectorAll('.photo-delete-btn, .photo-main-delete').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.idx);
+        deletePhoto(tab, idx);
+      });
+    });
   }
+
   buildGallery();
+}
+
+function deletePhoto(tab, idx) {
+  const photos = loadPhotos(roomData.id, tab);
+  photos.splice(idx, 1);
+  savePhotos(roomData.id, tab, photos);
+  renderGallery(tab);
+}
+
+// ─── Upload ───────────────────────────────────────────────────────────────
+function setupUploadListeners() {
+  document.querySelectorAll('.photo-file-input').forEach(input => {
+    input.addEventListener('change', async () => {
+      const tab   = input.dataset.tab;
+      const files = Array.from(input.files);
+      if (!files.length) return;
+
+      const existing = loadPhotos(roomData.id, tab);
+
+      // Convert each file to a base64 data URL
+      const newDataUrls = await Promise.all(files.map(fileToDataUrl));
+      const merged = existing.concat(newDataUrls);
+
+      savePhotos(roomData.id, tab, merged);
+      input.value = '';   // reset so same file can be re-selected
+      renderGallery(tab);
+    });
+  });
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function setUploadVisibility(visible) {
+  ['actual', 'model3d', 'floorPlan'].forEach(tab => {
+    const wrap = document.getElementById('upload-wrap-' + tab);
+    if (wrap) wrap.style.display = visible ? '' : 'none';
+  });
 }
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────
@@ -142,7 +232,6 @@ function setupSwatchSearch() {
     results.classList.add('open');
   });
 
-  // Close results when clicking outside
   document.addEventListener('click', e => {
     if (!e.target.closest('.swatch-search-wrap')) {
       results.classList.remove('open');
@@ -157,21 +246,19 @@ function renderSwatches() {
   const swatches = roomData.recommendations.swatches || [];
   const count    = swatches.length;
 
-  // Update hint
   if (editMode) {
     hint.textContent = count >= 4 ? 'Full — remove a swatch to add another' : `${count}/4 selected`;
   } else {
     hint.textContent = count === 0 ? 'No colors selected yet' : `${count} color${count !== 1 ? 's' : ''} selected`;
   }
 
-  // Build 4 cells (filled or empty)
   let html = '';
   for (let i = 0; i < 4; i++) {
     if (i < count) {
-      const c = swatches[i];
-      const textColor = isLight(c.hex) ? 'rgba(0,0,0,0.55)' : null;
-      const nameBg    = isLight(c.hex) ? 'rgba(0,0,0,0.18)' : 'rgba(0,0,0,0.45)';
-      const numBg     = isLight(c.hex) ? 'rgba(0,0,0,0.12)' : 'rgba(0,0,0,0.30)';
+      const c      = swatches[i];
+      const light  = isLight(c.hex);
+      const nameBg = light ? 'rgba(0,0,0,0.18)' : 'rgba(0,0,0,0.45)';
+      const numBg  = light ? 'rgba(0,0,0,0.12)' : 'rgba(0,0,0,0.30)';
       html += `
         <div class="swatch-cell">
           <div class="swatch-cell-color" style="background:${c.hex}"></div>
@@ -182,28 +269,22 @@ function renderSwatches() {
           </div>
         </div>`;
     } else {
-      // Empty slot
-      if (editMode && count < 4) {
-        html += `<div class="swatch-cell-empty addable" title="Search above to add a color">+</div>`;
-      } else {
-        html += `<div class="swatch-cell-empty"></div>`;
-      }
+      html += editMode && count < 4
+        ? `<div class="swatch-cell-empty addable" title="Search above to add a color">+</div>`
+        : `<div class="swatch-cell-empty"></div>`;
     }
   }
 
   grid.innerHTML = html;
 
-  // Wire remove buttons
   grid.querySelectorAll('.swatch-remove-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const idx = parseInt(btn.dataset.idx);
-      roomData.recommendations.swatches.splice(idx, 1);
+      roomData.recommendations.swatches.splice(parseInt(btn.dataset.idx), 1);
       renderSwatches();
     });
   });
 }
 
-// Returns true if a hex color is "light" (needs dark overlay text)
 function isLight(hex) {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
@@ -211,7 +292,7 @@ function isLight(hex) {
   return (r * 299 + g * 587 + b * 114) / 1000 > 155;
 }
 
-// ─── Recommendations Render ───────────────────────────────────────────────
+// ─── Recommendations ──────────────────────────────────────────────────────
 function renderRecommendations() {
   const rec  = roomData.recommendations;
   const body = document.getElementById('rec-body');
@@ -233,28 +314,24 @@ function buildViewPanel(rec) {
         ? `<div class="rec-text">${escHtml(paint.notes)}</div>`
         : `<span class="rec-empty">No paint notes yet.</span>`}
     </div>
-
     <div class="rec-section">
       <div class="rec-section-label">Flooring</div>
       ${rec.flooring
         ? `<div class="rec-text">${escHtml(rec.flooring)}</div>`
         : `<span class="rec-empty">No flooring recommendation yet.</span>`}
     </div>
-
     <div class="rec-section">
       <div class="rec-section-label">Lighting</div>
       ${rec.lighting
         ? `<div class="rec-text">${escHtml(rec.lighting)}</div>`
         : `<span class="rec-empty">No lighting recommendation yet.</span>`}
     </div>
-
     <div class="rec-section">
       <div class="rec-section-label">Furniture &amp; Layout</div>
       ${rec.furniture
         ? `<div class="rec-text">${escHtml(rec.furniture)}</div>`
         : `<span class="rec-empty">No furniture recommendation yet.</span>`}
     </div>
-
     <div class="rec-section">
       <div class="rec-section-label">General Notes</div>
       ${rec.generalNotes
@@ -272,31 +349,26 @@ function buildEditForm(rec) {
       <textarea class="edit-field" id="paint-notes" rows="3"
         placeholder="e.g. Use eggshell finish on walls, semi-gloss on trim…">${escHtml(paint.notes || '')}</textarea>
     </div>
-
     <div class="rec-section">
       <div class="rec-section-label">Flooring</div>
       <textarea class="edit-field" id="rec-flooring" rows="3"
         placeholder="e.g. Wide-plank white oak hardwood…">${escHtml(rec.flooring || '')}</textarea>
     </div>
-
     <div class="rec-section">
       <div class="rec-section-label">Lighting</div>
       <textarea class="edit-field" id="rec-lighting" rows="3"
         placeholder="e.g. Warm Edison bulbs, antler chandelier…">${escHtml(rec.lighting || '')}</textarea>
     </div>
-
     <div class="rec-section">
       <div class="rec-section-label">Furniture &amp; Layout</div>
       <textarea class="edit-field" id="rec-furniture" rows="3"
         placeholder="e.g. Sectional sofa facing the fireplace…">${escHtml(rec.furniture || '')}</textarea>
     </div>
-
     <div class="rec-section">
       <div class="rec-section-label">General Notes</div>
       <textarea class="edit-field" id="rec-general" rows="4"
         placeholder="Any other recommendations…">${escHtml(rec.generalNotes || '')}</textarea>
     </div>
-
     <button class="save-btn" id="save-recs-btn">Save &amp; Download rooms.json</button>
   `;
 }
@@ -352,6 +424,11 @@ function enterEditMode() {
   document.getElementById('edit-toggle').textContent = 'Done';
   document.getElementById('edit-toggle').classList.add('active');
   document.getElementById('swatch-search-wrap').style.display = '';
+  setUploadVisibility(true);
+  // Re-render galleries so delete buttons appear
+  renderGallery('actual');
+  renderGallery('model3d');
+  renderGallery('floorPlan');
   renderSwatches();
   renderRecommendations();
 }
@@ -363,6 +440,11 @@ function exitEditMode() {
   document.getElementById('swatch-search-wrap').style.display = 'none';
   document.getElementById('swatch-search').value = '';
   document.getElementById('swatch-results').classList.remove('open');
+  setUploadVisibility(false);
+  // Re-render galleries so delete buttons disappear
+  renderGallery('actual');
+  renderGallery('model3d');
+  renderGallery('floorPlan');
   renderSwatches();
   renderRecommendations();
 }
