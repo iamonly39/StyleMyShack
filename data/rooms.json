@@ -1,0 +1,89 @@
+{
+  "cabinName": "My Cabin",
+  "rooms": [
+    {
+      "id": "living-room",
+      "name": "Living Room",
+      "description": "Main gathering and relaxation space",
+      "emoji": "🛋️",
+      "photos": {
+        "floorPlan": [],
+        "model3d": [],
+        "actual": []
+      },
+      "recommendations": {
+        "swatches": [],
+        "paint": {
+          "notes": ""
+        },
+        "flooring": "",
+        "lighting": "",
+        "furniture": "",
+        "generalNotes": ""
+      }
+    },
+    {
+      "id": "kitchen",
+      "name": "Kitchen",
+      "description": "Cooking and dining area",
+      "emoji": "🍳",
+      "photos": {
+        "floorPlan": [],
+        "model3d": [],
+        "actual": []
+      },
+      "recommendations": {
+        "swatches": [],
+        "paint": {
+          "notes": ""
+        },
+        "flooring": "",
+        "lighting": "",
+        "furniture": "",
+        "generalNotes": ""
+      }
+    },
+    {
+      "id": "bedroom",
+      "name": "Bedroom",
+      "description": "Primary sleeping quarters",
+      "emoji": "🛏️",
+      "photos": {
+        "floorPlan": [],
+        "model3d": [],
+        "actual": []
+      },
+      "recommendations": {
+        "swatches": [],
+        "paint": {
+          "notes": ""
+        },
+        "flooring": "",
+        "lighting": "",
+        "furniture": "",
+        "generalNotes": ""
+      }
+    },
+    {
+      "id": "bathroom",
+      "name": "Bathroom",
+      "description": "Full bath and fixtures",
+      "emoji": "🚿",
+      "photos": {
+        "floorPlan": [],
+        "model3d": [],
+        "actual": []
+      },
+      "recommendations": {
+        "swatches": [],
+        "paint": {
+          "notes": ""
+        },
+        "flooring": "",
+        "lighting": "",
+        "furniture": "",
+        "generalNotes": ""
+      }
+    }
+  ]
+}
