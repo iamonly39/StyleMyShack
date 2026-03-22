@@ -799,6 +799,90 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   color: var(--bark);
 }
 
+/* ─── Photo Upload ────────────────────────────────────────────────────────── */
+.photo-upload-wrap {
+  padding: 0.75rem 1rem;
+  border-top: 1px dashed var(--border);
+}
+
+.photo-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 1.1rem;
+  background: var(--cream);
+  border: 2px dashed var(--bark-light);
+  border-radius: 8px;
+  color: var(--bark);
+  font-family: system-ui, sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+  width: 100%;
+  justify-content: center;
+}
+
+.photo-upload-btn:hover {
+  background: #f0e8dc;
+  border-color: var(--bark);
+}
+
+.photo-file-input { display: none; }
+
+/* Delete button on each thumbnail in edit mode */
+.photo-thumb-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.photo-delete-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(180, 30, 30, 0.82);
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  transition: background var(--transition);
+}
+
+.photo-delete-btn:hover { background: rgba(200, 0, 0, 0.95); }
+
+/* Delete button on the main large photo */
+.photo-main-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.photo-main-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 0.3rem 0.65rem;
+  background: rgba(180, 30, 30, 0.82);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  z-index: 5;
+  transition: background var(--transition);
+}
+
+.photo-main-delete:hover { background: rgba(200, 0, 0, 0.95); }
+
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .paint-swatches { grid-template-columns: 1fr; }
