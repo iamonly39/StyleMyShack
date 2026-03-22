@@ -1,5 +1,4 @@
 // ─── State ────────────────────────────────────────────────────────────────
-const DESIGNER_PASSWORD = 'cabin2024';   // change this before sharing
 let roomData  = null;
 let allRooms  = null;
 let bmColors  = [];
@@ -55,7 +54,6 @@ async function init() {
   renderRecommendations();
   setupTabs();
   setupEditToggle();
-  setupPasswordModal();
   setupSwatchSearch();
   setupUploadListeners();
 }
@@ -408,14 +406,7 @@ function saveRecommendations() {
 // ─── Edit Toggle & Password ───────────────────────────────────────────────
 function setupEditToggle() {
   document.getElementById('edit-toggle').addEventListener('click', () => {
-    if (editMode) {
-      exitEditMode();
-    } else {
-      document.getElementById('password-modal').classList.add('open');
-      document.getElementById('password-input').value = '';
-      document.getElementById('modal-error').style.display = 'none';
-      setTimeout(() => document.getElementById('password-input').focus(), 50);
-    }
+    if (editMode) exitEditMode(); else enterEditMode();
   });
 }
 
@@ -447,30 +438,6 @@ function exitEditMode() {
   renderGallery('floorPlan');
   renderSwatches();
   renderRecommendations();
-}
-
-function setupPasswordModal() {
-  const modal   = document.getElementById('password-modal');
-  const input   = document.getElementById('password-input');
-  const error   = document.getElementById('modal-error');
-  const confirm = document.getElementById('modal-confirm');
-  const cancel  = document.getElementById('modal-cancel');
-
-  function attemptUnlock() {
-    if (input.value === DESIGNER_PASSWORD) {
-      modal.classList.remove('open');
-      enterEditMode();
-    } else {
-      error.style.display = 'block';
-      input.value = '';
-      input.focus();
-    }
-  }
-
-  confirm.addEventListener('click', attemptUnlock);
-  cancel.addEventListener('click',  () => modal.classList.remove('open'));
-  input.addEventListener('keydown', e => { if (e.key === 'Enter') attemptUnlock(); });
-  modal.addEventListener('click',   e => { if (e.target === modal) modal.classList.remove('open'); });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
