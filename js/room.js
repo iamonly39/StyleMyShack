@@ -4,19 +4,26 @@ let allRooms  = null;
 let bmColors  = [];
 let editMode  = false;
 
-// localStorage key for photos: "photos_<roomId>_<tab>"
+// ─── localStorage helpers ─────────────────────────────────────────────────
 function photosKey(roomId, tab) { return `photos_${roomId}_${tab}`; }
+function recsKey(roomId)        { return `recs_${roomId}`; }
 
-// Load photos for a given tab (localStorage wins over rooms.json defaults)
 function loadPhotos(roomId, tab) {
   const stored = localStorage.getItem(photosKey(roomId, tab));
-  if (stored) return JSON.parse(stored);
-  return roomData.photos[tab] || [];
+  return stored ? JSON.parse(stored) : (roomData.photos[tab] || []);
 }
 
-// Persist photos array to localStorage
 function savePhotos(roomId, tab, photos) {
   localStorage.setItem(photosKey(roomId, tab), JSON.stringify(photos));
+}
+
+function loadRecs(roomId, defaults) {
+  const stored = localStorage.getItem(recsKey(roomId));
+  return stored ? JSON.parse(stored) : defaults;
+}
+
+function persistRecs() {
+  localStorage.setItem(recsKey(roomData.id), JSON.stringify(roomData.recommendations));
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────
@@ -39,12 +46,13 @@ async function init() {
     return;
   }
 
+  // Load recommendations from localStorage (persisted) or fall back to rooms.json
+  roomData.recommendations = loadRecs(roomId, roomData.recommendations);
   roomData.recommendations.swatches = roomData.recommendations.swatches || [];
 
   document.title = roomData.name + ' — StyleMyShack';
   document.getElementById('room-title').textContent       = roomData.name;
   document.getElementById('room-description').textContent = roomData.description;
-  sessionStorage.setItem('cabinName', data.cabinName);
 
   renderGallery('actual');
   renderGallery('model3d');
@@ -82,7 +90,7 @@ function renderGallery(tab) {
   let activeIdx = 0;
 
   function buildGallery() {
-    const photos = loadPhotos(roomData.id, tab);   // re-read in case deletion happened
+    const photos = loadPhotos(roomData.id, tab);
 
     container.innerHTML = `
       <div class="photo-main-wrap">
@@ -103,7 +111,6 @@ function renderGallery(tab) {
         </div>` : ''}
     `;
 
-    // Thumbnail navigation
     container.querySelectorAll('.photo-thumb').forEach(thumb => {
       thumb.addEventListener('click', () => {
         activeIdx = parseInt(thumb.dataset.idx);
@@ -111,12 +118,10 @@ function renderGallery(tab) {
       });
     });
 
-    // Delete buttons
     container.querySelectorAll('.photo-delete-btn, .photo-main-delete').forEach(btn => {
       btn.addEventListener('click', e => {
         e.stopPropagation();
-        const idx = parseInt(btn.dataset.idx);
-        deletePhoto(tab, idx);
+        deletePhoto(tab, parseInt(btn.dataset.idx));
       });
     });
   }
@@ -139,14 +144,11 @@ function setupUploadListeners() {
       const files = Array.from(input.files);
       if (!files.length) return;
 
-      const existing = loadPhotos(roomData.id, tab);
-
-      // Convert each file to a base64 data URL
+      const existing    = loadPhotos(roomData.id, tab);
       const newDataUrls = await Promise.all(files.map(fileToDataUrl));
-      const merged = existing.concat(newDataUrls);
 
-      savePhotos(roomData.id, tab, merged);
-      input.value = '';   // reset so same file can be re-selected
+      savePhotos(roomData.id, tab, existing.concat(newDataUrls));
+      input.value = '';
       renderGallery(tab);
     });
   });
@@ -190,10 +192,7 @@ function setupSwatchSearch() {
     if (!q) { results.classList.remove('open'); results.innerHTML = ''; return; }
 
     const matches = bmColors
-      .filter(c =>
-        c.name.toLowerCase().includes(q) ||
-        c.number.toLowerCase().includes(q)
-      )
+      .filter(c => c.name.toLowerCase().includes(q) || c.number.toLowerCase().includes(q))
       .slice(0, 40);
 
     if (matches.length === 0) {
@@ -220,6 +219,7 @@ function setupSwatchSearch() {
         const color = bmColors.find(c => c.number === item.dataset.number);
         if (!color) return;
         roomData.recommendations.swatches.push(color);
+        persistRecs();
         input.value = '';
         results.classList.remove('open');
         results.innerHTML = '';
@@ -231,9 +231,7 @@ function setupSwatchSearch() {
   });
 
   document.addEventListener('click', e => {
-    if (!e.target.closest('.swatch-search-wrap')) {
-      results.classList.remove('open');
-    }
+    if (!e.target.closest('.swatch-search-wrap')) results.classList.remove('open');
   });
 }
 
@@ -278,6 +276,7 @@ function renderSwatches() {
   grid.querySelectorAll('.swatch-remove-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       roomData.recommendations.swatches.splice(parseInt(btn.dataset.idx), 1);
+      persistRecs();
       renderSwatches();
     });
   });
@@ -367,7 +366,7 @@ function buildEditForm(rec) {
       <textarea class="edit-field" id="rec-general" rows="4"
         placeholder="Any other recommendations…">${escHtml(rec.generalNotes || '')}</textarea>
     </div>
-    <button class="save-btn" id="save-recs-btn">Save &amp; Download rooms.json</button>
+    <button class="save-btn" id="save-recs-btn">Save</button>
   `;
 }
 
@@ -384,26 +383,12 @@ function saveRecommendations() {
     generalNotes: body.querySelector('#rec-general')?.value   || ''
   };
 
-  allRooms = allRooms.map(r => r.id === roomData.id ? roomData : r);
-
-  const json = JSON.stringify({
-    cabinName: sessionStorage.getItem('cabinName') || 'My Cabin',
-    rooms: allRooms
-  }, null, 2);
-
-  const blob = new Blob([json], { type: 'application/json' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href     = url;
-  a.download = 'rooms.json';
-  a.click();
-  URL.revokeObjectURL(url);
-
-  showBanner('Downloaded! Replace data/rooms.json and push to redeploy.');
+  persistRecs();
+  showBanner('Saved!');
   renderRecommendations();
 }
 
-// ─── Edit Toggle & Password ───────────────────────────────────────────────
+// ─── Edit Toggle ──────────────────────────────────────────────────────────
 function setupEditToggle() {
   document.getElementById('edit-toggle').addEventListener('click', () => {
     if (editMode) exitEditMode(); else enterEditMode();
@@ -416,7 +401,6 @@ function enterEditMode() {
   document.getElementById('edit-toggle').classList.add('active');
   document.getElementById('swatch-search-wrap').style.display = '';
   setUploadVisibility(true);
-  // Re-render galleries so delete buttons appear
   renderGallery('actual');
   renderGallery('model3d');
   renderGallery('floorPlan');
@@ -432,7 +416,6 @@ function exitEditMode() {
   document.getElementById('swatch-search').value = '';
   document.getElementById('swatch-results').classList.remove('open');
   setUploadVisibility(false);
-  // Re-render galleries so delete buttons disappear
   renderGallery('actual');
   renderGallery('model3d');
   renderGallery('floorPlan');
@@ -445,7 +428,7 @@ function showBanner(msg) {
   const banner = document.getElementById('save-banner');
   banner.textContent = msg;
   banner.classList.add('show');
-  setTimeout(() => banner.classList.remove('show'), 4500);
+  setTimeout(() => banner.classList.remove('show'), 3000);
 }
 
 function escHtml(str) {
