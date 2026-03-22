@@ -17,17 +17,19 @@ async function getDB() {
   });
 }
 
-async function loadPhotoBlobs(roomId, tab) {
+async function idbGet(key) {
   try {
     const db = await getDB();
     return await new Promise((resolve, reject) => {
-      const req = db.transaction('photos', 'readonly')
-                    .objectStore('photos')
-                    .get(`${roomId}_${tab}`);
-      req.onsuccess = () => resolve(req.result || []);
+      const req = db.transaction('photos', 'readonly').objectStore('photos').get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
       req.onerror   = () => reject(req.error);
     });
-  } catch { return []; }
+  } catch { return null; }
+}
+
+async function loadPhotoBlobs(roomId, tab) {
+  return (await idbGet(`${roomId}_${tab}`)) || [];
 }
 
 async function savePhotoBlobs(roomId, tab, blobs) {
@@ -46,6 +48,29 @@ async function savePhotoBlobs(roomId, tab, blobs) {
   }
 }
 
+async function savePinnedBlob(roomId, blob) {
+  try {
+    const db = await getDB();
+    await new Promise((resolve, reject) => {
+      const req = db.transaction('photos', 'readwrite')
+                    .objectStore('photos')
+                    .put(blob, `${roomId}_pinned`);
+      req.onsuccess = () => resolve();
+      req.onerror   = () => reject(req.error);
+    });
+  } catch (e) { console.error('Pin save failed:', e); }
+}
+
+async function loadRoomThumbBlob(roomId) {
+  const pinned = await idbGet(`${roomId}_pinned`);
+  if (pinned) return pinned;
+  for (const tab of ['actual', 'model3d', 'floorPlan']) {
+    const blobs = await idbGet(`${roomId}_${tab}`);
+    if (blobs && blobs.length) return blobs[0];
+  }
+  return null;
+}
+
 // ─── localStorage (notes & swatches — small text only) ────────────────────
 function recsKey(roomId) { return `recs_${roomId}`; }
 
@@ -56,6 +81,15 @@ function loadRecs(roomId, defaults) {
 
 function persistRecs() {
   localStorage.setItem(recsKey(roomData.id), JSON.stringify(roomData.recommendations));
+}
+
+function pinnedRefKey(roomId) { return `pinnedRef_${roomId}`; }
+function loadPinnedRef(roomId) {
+  const s = localStorage.getItem(pinnedRefKey(roomId));
+  return s ? JSON.parse(s) : null;
+}
+function savePinnedRef(roomId, ref) {
+  localStorage.setItem(pinnedRefKey(roomId), JSON.stringify(ref));
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────
@@ -89,7 +123,8 @@ async function init() {
   await Promise.all([
     renderGallery('actual'),
     renderGallery('model3d'),
-    renderGallery('floorPlan')
+    renderGallery('floorPlan'),
+    renderRoomCarousel()
   ]);
 
   renderSwatches();
@@ -98,6 +133,29 @@ async function init() {
   setupEditToggle();
   setupSwatchSearch();
   setupUploadListeners();
+}
+
+// ─── Room Carousel ────────────────────────────────────────────────────────
+async function renderRoomCarousel() {
+  const carousel = document.getElementById('room-carousel');
+  if (!carousel) return;
+
+  const items = await Promise.all(allRooms.map(async room => {
+    const blob = await loadRoomThumbBlob(room.id);
+    const url = blob ? URL.createObjectURL(blob) : null;
+    return { room, url };
+  }));
+
+  carousel.innerHTML = items.map(({ room, url }) => `
+    <a class="carousel-item${room.id === roomData.id ? ' current' : ''}"
+       href="room.html?id=${room.id}">
+      ${url
+        ? `<img class="carousel-thumb" src="${url}" alt="${escHtml(room.name)}" />`
+        : `<div class="carousel-thumb carousel-thumb-placeholder">${room.emoji}</div>`
+      }
+      <span class="carousel-label">${escHtml(room.name)}</span>
+    </a>
+  `).join('');
 }
 
 // ─── Gallery ──────────────────────────────────────────────────────────────
@@ -126,24 +184,43 @@ async function renderGallery(tab) {
   let activeIdx = 0;
 
   function build() {
+    const pinnedRef      = loadPinnedRef(roomData.id);
+    const isPinnedActive = pinnedRef && pinnedRef.tab === tab && pinnedRef.idx === activeIdx;
+
     container.innerHTML = `
       <div class="photo-main-wrap">
         <img class="photo-main" src="${urls[activeIdx]}" alt="Photo ${activeIdx + 1}" />
+        <button class="photo-pin-btn${isPinnedActive ? ' is-pinned' : ''}" data-idx="${activeIdx}"
+                title="${isPinnedActive ? 'Cover photo' : 'Set as cover photo'}">📌</button>
         ${editMode ? `<button class="photo-main-delete" data-idx="${activeIdx}">Delete</button>` : ''}
       </div>
       ${urls.length > 1 ? `
         <div class="photo-thumbs">
-          ${urls.map((u, i) => `
-            <div class="photo-thumb-wrap">
-              <img class="photo-thumb ${i === activeIdx ? 'active' : ''}"
-                   src="${u}" alt="Thumbnail ${i + 1}" data-idx="${i}" />
-              ${editMode ? `<button class="photo-delete-btn" data-idx="${i}" title="Delete">✕</button>` : ''}
-            </div>`).join('')}
+          ${urls.map((u, i) => {
+            const isThisPinned = pinnedRef && pinnedRef.tab === tab && pinnedRef.idx === i;
+            return `
+              <div class="photo-thumb-wrap">
+                <img class="photo-thumb ${i === activeIdx ? 'active' : ''}"
+                     src="${u}" alt="Thumbnail ${i + 1}" data-idx="${i}" />
+                ${isThisPinned ? '<span class="thumb-pin-badge">📌</span>' : ''}
+                ${editMode ? `<button class="photo-delete-btn" data-idx="${i}" title="Delete">✕</button>` : ''}
+              </div>`;
+          }).join('')}
         </div>` : ''}
     `;
 
     container.querySelectorAll('.photo-thumb').forEach(thumb => {
       thumb.addEventListener('click', () => { activeIdx = +thumb.dataset.idx; build(); });
+    });
+
+    container.querySelector('.photo-pin-btn').addEventListener('click', async e => {
+      e.stopPropagation();
+      const idx = +e.currentTarget.dataset.idx;
+      await savePinnedBlob(roomData.id, blobs[idx]);
+      savePinnedRef(roomData.id, { tab, idx });
+      showBanner('Cover photo updated!');
+      build();
+      renderRoomCarousel();
     });
 
     container.querySelectorAll('.photo-delete-btn, .photo-main-delete').forEach(btn => {
