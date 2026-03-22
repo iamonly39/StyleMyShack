@@ -1,21 +1,53 @@
 // ─── State ────────────────────────────────────────────────────────────────
-let roomData  = null;
-let allRooms  = null;
-let bmColors  = [];
-let editMode  = false;
+let roomData = null;
+let allRooms = null;
+let bmColors = [];
+let editMode = false;
 
-// ─── localStorage helpers ─────────────────────────────────────────────────
-function photosKey(roomId, tab) { return `photos_${roomId}_${tab}`; }
-function recsKey(roomId)        { return `recs_${roomId}`; }
+// ─── IndexedDB (photos — no size limit, no base64 bloat) ──────────────────
+let _db = null;
 
-function loadPhotos(roomId, tab) {
-  const stored = localStorage.getItem(photosKey(roomId, tab));
-  return stored ? JSON.parse(stored) : (roomData.photos[tab] || []);
+async function getDB() {
+  if (_db) return _db;
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('StyleMyShack', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('photos');
+    req.onsuccess = e => { _db = e.target.result; resolve(_db); };
+    req.onerror   = () => reject(req.error);
+  });
 }
 
-function savePhotos(roomId, tab, photos) {
-  localStorage.setItem(photosKey(roomId, tab), JSON.stringify(photos));
+async function loadPhotoBlobs(roomId, tab) {
+  try {
+    const db = await getDB();
+    return await new Promise((resolve, reject) => {
+      const req = db.transaction('photos', 'readonly')
+                    .objectStore('photos')
+                    .get(`${roomId}_${tab}`);
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror   = () => reject(req.error);
+    });
+  } catch { return []; }
 }
+
+async function savePhotoBlobs(roomId, tab, blobs) {
+  try {
+    const db = await getDB();
+    await new Promise((resolve, reject) => {
+      const req = db.transaction('photos', 'readwrite')
+                    .objectStore('photos')
+                    .put(blobs, `${roomId}_${tab}`);
+      req.onsuccess = () => resolve();
+      req.onerror   = () => reject(req.error);
+    });
+  } catch (e) {
+    console.error('Photo save failed:', e);
+    showBanner('Storage error — photo may not have saved.');
+  }
+}
+
+// ─── localStorage (notes & swatches — small text only) ────────────────────
+function recsKey(roomId) { return `recs_${roomId}`; }
 
 function loadRecs(roomId, defaults) {
   const stored = localStorage.getItem(recsKey(roomId));
@@ -46,7 +78,7 @@ async function init() {
     return;
   }
 
-  // Load recommendations from localStorage (persisted) or fall back to rooms.json
+  // Notes/swatches from localStorage; photos from IndexedDB
   roomData.recommendations = loadRecs(roomId, roomData.recommendations);
   roomData.recommendations.swatches = roomData.recommendations.swatches || [];
 
@@ -54,9 +86,11 @@ async function init() {
   document.getElementById('room-title').textContent       = roomData.name;
   document.getElementById('room-description').textContent = roomData.description;
 
-  renderGallery('actual');
-  renderGallery('model3d');
-  renderGallery('floorPlan');
+  await Promise.all([
+    renderGallery('actual'),
+    renderGallery('model3d'),
+    renderGallery('floorPlan')
+  ]);
 
   renderSwatches();
   renderRecommendations();
@@ -73,12 +107,12 @@ const GALLERY_ICONS = {
   floorPlan: { icon: '📐', empty: 'No floor plan uploaded yet.' }
 };
 
-function renderGallery(tab) {
-  const photos    = loadPhotos(roomData.id, tab);
+async function renderGallery(tab) {
   const container = document.getElementById('gallery-' + tab);
   const meta      = GALLERY_ICONS[tab];
+  const blobs     = await loadPhotoBlobs(roomData.id, tab);
 
-  if (!photos || photos.length === 0) {
+  if (blobs.length === 0) {
     container.innerHTML = `
       <div class="photo-placeholder">
         <span class="icon">${meta.icon}</span>
@@ -87,53 +121,50 @@ function renderGallery(tab) {
     return;
   }
 
+  // Create object URLs for display (revoked when replaced)
+  let urls      = blobs.map(b => URL.createObjectURL(b));
   let activeIdx = 0;
 
-  function buildGallery() {
-    const photos = loadPhotos(roomData.id, tab);
-
+  function build() {
     container.innerHTML = `
       <div class="photo-main-wrap">
-        <img class="photo-main" src="${photos[activeIdx]}" alt="Photo ${activeIdx + 1}" />
-        ${editMode ? `
-          <button class="photo-main-delete" data-tab="${tab}" data-idx="${activeIdx}"
-                  title="Delete this photo">Delete</button>` : ''}
+        <img class="photo-main" src="${urls[activeIdx]}" alt="Photo ${activeIdx + 1}" />
+        ${editMode ? `<button class="photo-main-delete" data-idx="${activeIdx}">Delete</button>` : ''}
       </div>
-      ${photos.length > 1 ? `
+      ${urls.length > 1 ? `
         <div class="photo-thumbs">
-          ${photos.map((src, i) => `
+          ${urls.map((u, i) => `
             <div class="photo-thumb-wrap">
               <img class="photo-thumb ${i === activeIdx ? 'active' : ''}"
-                   src="${src}" alt="Thumbnail ${i + 1}" data-idx="${i}" />
-              ${editMode ? `<button class="photo-delete-btn" data-tab="${tab}" data-idx="${i}"
-                                    title="Delete">✕</button>` : ''}
+                   src="${u}" alt="Thumbnail ${i + 1}" data-idx="${i}" />
+              ${editMode ? `<button class="photo-delete-btn" data-idx="${i}" title="Delete">✕</button>` : ''}
             </div>`).join('')}
         </div>` : ''}
     `;
 
     container.querySelectorAll('.photo-thumb').forEach(thumb => {
-      thumb.addEventListener('click', () => {
-        activeIdx = parseInt(thumb.dataset.idx);
-        buildGallery();
-      });
+      thumb.addEventListener('click', () => { activeIdx = +thumb.dataset.idx; build(); });
     });
 
     container.querySelectorAll('.photo-delete-btn, .photo-main-delete').forEach(btn => {
-      btn.addEventListener('click', e => {
+      btn.addEventListener('click', async e => {
         e.stopPropagation();
-        deletePhoto(tab, parseInt(btn.dataset.idx));
+        const idx = +btn.dataset.idx;
+        URL.revokeObjectURL(urls[idx]);
+        urls.splice(idx, 1);
+        blobs.splice(idx, 1);
+        await savePhotoBlobs(roomData.id, tab, blobs);
+        if (blobs.length === 0) {
+          renderGallery(tab);   // show empty state
+        } else {
+          activeIdx = Math.min(activeIdx, blobs.length - 1);
+          build();
+        }
       });
     });
   }
 
-  buildGallery();
-}
-
-function deletePhoto(tab, idx) {
-  const photos = loadPhotos(roomData.id, tab);
-  photos.splice(idx, 1);
-  savePhotos(roomData.id, tab, photos);
-  renderGallery(tab);
+  build();
 }
 
 // ─── Upload ───────────────────────────────────────────────────────────────
@@ -144,22 +175,11 @@ function setupUploadListeners() {
       const files = Array.from(input.files);
       if (!files.length) return;
 
-      const existing    = loadPhotos(roomData.id, tab);
-      const newDataUrls = await Promise.all(files.map(fileToDataUrl));
-
-      savePhotos(roomData.id, tab, existing.concat(newDataUrls));
+      const existing = await loadPhotoBlobs(roomData.id, tab);
+      await savePhotoBlobs(roomData.id, tab, existing.concat(files));
       input.value = '';
       renderGallery(tab);
     });
-  });
-}
-
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload  = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
   });
 }
 
@@ -242,11 +262,9 @@ function renderSwatches() {
   const swatches = roomData.recommendations.swatches || [];
   const count    = swatches.length;
 
-  if (editMode) {
-    hint.textContent = count >= 4 ? 'Full — remove a swatch to add another' : `${count}/4 selected`;
-  } else {
-    hint.textContent = count === 0 ? 'No colors selected yet' : `${count} color${count !== 1 ? 's' : ''} selected`;
-  }
+  hint.textContent = editMode
+    ? (count >= 4 ? 'Full — remove a swatch to add another' : `${count}/4 selected`)
+    : (count === 0 ? 'No colors selected yet' : `${count} color${count !== 1 ? 's' : ''} selected`);
 
   let html = '';
   for (let i = 0; i < 4; i++) {
@@ -275,7 +293,7 @@ function renderSwatches() {
 
   grid.querySelectorAll('.swatch-remove-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      roomData.recommendations.swatches.splice(parseInt(btn.dataset.idx), 1);
+      roomData.recommendations.swatches.splice(+btn.dataset.idx, 1);
       persistRecs();
       renderSwatches();
     });
@@ -291,98 +309,57 @@ function isLight(hex) {
 
 // ─── Recommendations ──────────────────────────────────────────────────────
 function renderRecommendations() {
-  const rec  = roomData.recommendations;
   const body = document.getElementById('rec-body');
-
   if (editMode) {
-    body.innerHTML = buildEditForm(rec);
+    body.innerHTML = buildEditForm(roomData.recommendations);
     body.querySelector('#save-recs-btn').addEventListener('click', saveRecommendations);
   } else {
-    body.innerHTML = buildViewPanel(rec);
+    body.innerHTML = buildViewPanel(roomData.recommendations);
   }
 }
 
 function buildViewPanel(rec) {
   const paint = rec.paint || {};
-  return `
+  const field = (label, val) => `
     <div class="rec-section">
-      <div class="rec-section-label">Paint Notes</div>
-      ${paint.notes
-        ? `<div class="rec-text">${escHtml(paint.notes)}</div>`
-        : `<span class="rec-empty">No paint notes yet.</span>`}
-    </div>
-    <div class="rec-section">
-      <div class="rec-section-label">Flooring</div>
-      ${rec.flooring
-        ? `<div class="rec-text">${escHtml(rec.flooring)}</div>`
-        : `<span class="rec-empty">No flooring recommendation yet.</span>`}
-    </div>
-    <div class="rec-section">
-      <div class="rec-section-label">Lighting</div>
-      ${rec.lighting
-        ? `<div class="rec-text">${escHtml(rec.lighting)}</div>`
-        : `<span class="rec-empty">No lighting recommendation yet.</span>`}
-    </div>
-    <div class="rec-section">
-      <div class="rec-section-label">Furniture &amp; Layout</div>
-      ${rec.furniture
-        ? `<div class="rec-text">${escHtml(rec.furniture)}</div>`
-        : `<span class="rec-empty">No furniture recommendation yet.</span>`}
-    </div>
-    <div class="rec-section">
-      <div class="rec-section-label">General Notes</div>
-      ${rec.generalNotes
-        ? `<div class="rec-text">${escHtml(rec.generalNotes)}</div>`
-        : `<span class="rec-empty">No general notes yet.</span>`}
-    </div>
-  `;
+      <div class="rec-section-label">${label}</div>
+      ${val ? `<div class="rec-text">${escHtml(val)}</div>`
+            : `<span class="rec-empty">No ${label.toLowerCase()} yet.</span>`}
+    </div>`;
+  return field('Paint Notes', paint.notes)
+       + field('Flooring', rec.flooring)
+       + field('Lighting', rec.lighting)
+       + field('Furniture &amp; Layout', rec.furniture)
+       + field('General Notes', rec.generalNotes);
 }
 
 function buildEditForm(rec) {
   const paint = rec.paint || {};
-  return `
+  const area  = (id, label, val, ph, rows = 3) => `
     <div class="rec-section">
-      <div class="rec-section-label">Paint Notes</div>
-      <textarea class="edit-field" id="paint-notes" rows="3"
-        placeholder="e.g. Use eggshell finish on walls, semi-gloss on trim…">${escHtml(paint.notes || '')}</textarea>
-    </div>
-    <div class="rec-section">
-      <div class="rec-section-label">Flooring</div>
-      <textarea class="edit-field" id="rec-flooring" rows="3"
-        placeholder="e.g. Wide-plank white oak hardwood…">${escHtml(rec.flooring || '')}</textarea>
-    </div>
-    <div class="rec-section">
-      <div class="rec-section-label">Lighting</div>
-      <textarea class="edit-field" id="rec-lighting" rows="3"
-        placeholder="e.g. Warm Edison bulbs, antler chandelier…">${escHtml(rec.lighting || '')}</textarea>
-    </div>
-    <div class="rec-section">
-      <div class="rec-section-label">Furniture &amp; Layout</div>
-      <textarea class="edit-field" id="rec-furniture" rows="3"
-        placeholder="e.g. Sectional sofa facing the fireplace…">${escHtml(rec.furniture || '')}</textarea>
-    </div>
-    <div class="rec-section">
-      <div class="rec-section-label">General Notes</div>
-      <textarea class="edit-field" id="rec-general" rows="4"
-        placeholder="Any other recommendations…">${escHtml(rec.generalNotes || '')}</textarea>
-    </div>
-    <button class="save-btn" id="save-recs-btn">Save</button>
-  `;
+      <div class="rec-section-label">${label}</div>
+      <textarea class="edit-field" id="${id}" rows="${rows}"
+        placeholder="${ph}">${escHtml(val || '')}</textarea>
+    </div>`;
+  return area('paint-notes',  'Paint Notes',         paint.notes,    'e.g. Eggshell on walls, semi-gloss on trim…')
+       + area('rec-flooring', 'Flooring',             rec.flooring,   'e.g. Wide-plank white oak hardwood…')
+       + area('rec-lighting', 'Lighting',             rec.lighting,   'e.g. Warm Edison bulbs, antler chandelier…')
+       + area('rec-furniture','Furniture &amp; Layout',rec.furniture,  'e.g. Sectional sofa facing the fireplace…')
+       + area('rec-general',  'General Notes',        rec.generalNotes,'Any other recommendations…', 4)
+       + `<button class="save-btn" id="save-recs-btn">Save</button>`;
 }
 
 // ─── Save ─────────────────────────────────────────────────────────────────
 function saveRecommendations() {
   const body = document.getElementById('rec-body');
-
   roomData.recommendations = {
     swatches:     roomData.recommendations.swatches || [],
-    paint:        { notes: body.querySelector('#paint-notes')?.value || '' },
+    paint:        { notes: body.querySelector('#paint-notes')?.value  || '' },
     flooring:     body.querySelector('#rec-flooring')?.value  || '',
     lighting:     body.querySelector('#rec-lighting')?.value  || '',
     furniture:    body.querySelector('#rec-furniture')?.value || '',
     generalNotes: body.querySelector('#rec-general')?.value   || ''
   };
-
   persistRecs();
   showBanner('Saved!');
   renderRecommendations();
