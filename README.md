@@ -4,42 +4,43 @@ An interior design recommendation tool for your cabin — organized room by room
 
 ## Live Site
 
-Deployed via GitHub Pages. Enable Pages in your repo settings (Settings → Pages → Source: GitHub Actions).
+Deployed via Vercel. Connect your GitHub repo at [vercel.com](https://vercel.com) — it auto-detects the static site with no build configuration needed.
+
+## Stack
+
+- Vanilla HTML/CSS/JS — no framework, no build step
+- [Supabase](https://supabase.com) — PostgreSQL database + file storage
+- [Vercel](https://vercel.com) — static site hosting
+
+## First-Time Setup
+
+### 1. Run the database schema
+
+In your Supabase dashboard go to **SQL Editor → New query**, paste the contents of `schema.sql`, and run it. This creates all tables, seeds the four rooms, and sets up the `room-photos` storage bucket.
+
+### 2. Deploy to Vercel
+
+Import the GitHub repo in Vercel. No build settings are required — Vercel serves the static files directly. Every push to `master` redeploys automatically.
 
 ## How It Works
 
-- **Home page** (`index.html`) — shows all rooms as cards with status indicators
-- **Room page** (`room.html?id=<room-id>`) — shows photos and designer recommendations per room
-- All data lives in `data/rooms.json` — edit this file to update rooms and recommendations
-- Photos are stored in `images/rooms/<room-id>/`
-
-## Adding Photos
-
-Drop photos into the appropriate room folder, then reference them in `data/rooms.json`:
-
-```json
-"photos": {
-  "floorPlan": ["images/rooms/living-room/floor-plan.jpg"],
-  "model3d":   ["images/rooms/living-room/3d-01.jpg", "images/rooms/living-room/3d-02.jpg"],
-  "actual":    ["images/rooms/living-room/actual-01.jpg"]
-}
-```
-
-Push to `main` and the site redeploys automatically.
+- **Home page** (`index.html`) — shows all rooms as cards with status indicators and cover photos
+- **Room page** (`room.html?id=<room-id>`) — shows the photo gallery and designer recommendations for that room
+- Room definitions and cabin name live in Supabase (`rooms` and `settings` tables)
+- Recommendations (paint, flooring, lighting, furniture, notes, color swatches) are stored in the `recommendations` table
+- Photos are uploaded directly to Supabase Storage (`room-photos` bucket)
 
 ## Designer Workflow
 
 1. Open the live site and navigate to a room
-2. Click **Edit** and enter the designer password
-3. Fill in recommendations (paint colors, flooring, lighting, furniture, notes)
-4. Click **Save Recommendations** — this downloads an updated `rooms.json`
-5. Replace `data/rooms.json` in the repo with the downloaded file and push
-
-> The designer password is set in `js/room.js` (`DESIGNER_PASSWORD`). Change it before sharing the site.
+2. Click **Edit**
+3. Upload photos, search and select Benjamin Moore swatches, fill in recommendations
+4. Click **Save** — changes persist immediately to Supabase
+5. Click **Done** to exit edit mode
 
 ## Adding Rooms
 
-Add a new entry to the `rooms` array in `data/rooms.json` with a unique `id`, then create the matching folder in `images/rooms/`.
+Insert a new row into the `rooms` table in Supabase (set `id`, `name`, `description`, `emoji`, and `sort_order`), then insert a matching row into `recommendations` with that `room_id`.
 
 ## Rooms
 
@@ -49,3 +50,7 @@ Add a new entry to the `rooms` array in `data/rooms.json` with a unique `id`, th
 | Kitchen | `kitchen` |
 | Bedroom | `bedroom` |
 | Bathroom | `bathroom` |
+
+## Configuration
+
+Supabase credentials live in `js/supabase.js`. The anon key is safe to expose in frontend code — Supabase Row Level Security controls data access.
