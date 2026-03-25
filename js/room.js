@@ -4,92 +4,70 @@ let allRooms = null;
 let bmColors = [];
 let editMode = false;
 
-// ─── IndexedDB (photos — no size limit, no base64 bloat) ──────────────────
-let _db = null;
-
-async function getDB() {
-  if (_db) return _db;
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('StyleMyShack', 1);
-    req.onupgradeneeded = e => e.target.result.createObjectStore('photos');
-    req.onsuccess = e => { _db = e.target.result; resolve(_db); };
-    req.onerror   = () => reject(req.error);
-  });
+// ─── Supabase Photo Helpers ────────────────────────────────────────────────
+async function loadPhotos(roomId, tab) {
+  const { data } = await sb.from('photos')
+    .select('*')
+    .eq('room_id', roomId)
+    .eq('tab', tab)
+    .order('sort_order');
+  return data || [];
 }
 
-async function idbGet(key) {
-  try {
-    const db = await getDB();
-    return await new Promise((resolve, reject) => {
-      const req = db.transaction('photos', 'readonly').objectStore('photos').get(key);
-      req.onsuccess = () => resolve(req.result ?? null);
-      req.onerror   = () => reject(req.error);
-    });
-  } catch { return null; }
+function getPhotoUrl(storagePath) {
+  return sb.storage.from('room-photos').getPublicUrl(storagePath).data.publicUrl;
 }
 
-async function loadPhotoBlobs(roomId, tab) {
-  return (await idbGet(`${roomId}_${tab}`)) || [];
+async function loadRoomThumb(roomId) {
+  const { data: pinned } = await sb.from('photos')
+    .select('storage_path')
+    .eq('room_id', roomId)
+    .eq('is_pinned', true)
+    .maybeSingle();
+
+  if (pinned) return getPhotoUrl(pinned.storage_path);
+
+  const { data: first } = await sb.from('photos')
+    .select('storage_path')
+    .eq('room_id', roomId)
+    .order('created_at')
+    .limit(1)
+    .maybeSingle();
+
+  return first ? getPhotoUrl(first.storage_path) : null;
 }
 
-async function savePhotoBlobs(roomId, tab, blobs) {
-  try {
-    const db = await getDB();
-    await new Promise((resolve, reject) => {
-      const req = db.transaction('photos', 'readwrite')
-                    .objectStore('photos')
-                    .put(blobs, `${roomId}_${tab}`);
-      req.onsuccess = () => resolve();
-      req.onerror   = () => reject(req.error);
-    });
-  } catch (e) {
-    console.error('Photo save failed:', e);
-    showBanner('Storage error — photo may not have saved.');
-  }
+// ─── Recommendations Helpers ───────────────────────────────────────────────
+async function loadRecs(roomId) {
+  const { data } = await sb.from('recommendations')
+    .select('*')
+    .eq('room_id', roomId)
+    .maybeSingle();
+
+  if (!data) return { swatches: [], paint: { notes: '' }, flooring: '', lighting: '', furniture: '', generalNotes: '' };
+
+  return {
+    swatches:     data.swatches || [],
+    paint:        { notes: data.paint_notes || '' },
+    flooring:     data.flooring || '',
+    lighting:     data.lighting || '',
+    furniture:    data.furniture || '',
+    generalNotes: data.general_notes || ''
+  };
 }
 
-async function savePinnedBlob(roomId, blob) {
-  try {
-    const db = await getDB();
-    await new Promise((resolve, reject) => {
-      const req = db.transaction('photos', 'readwrite')
-                    .objectStore('photos')
-                    .put(blob, `${roomId}_pinned`);
-      req.onsuccess = () => resolve();
-      req.onerror   = () => reject(req.error);
-    });
-  } catch (e) { console.error('Pin save failed:', e); }
-}
-
-async function loadRoomThumbBlob(roomId) {
-  const pinned = await idbGet(`${roomId}_pinned`);
-  if (pinned) return pinned;
-  for (const tab of ['actual', 'model3d', 'floorPlan']) {
-    const blobs = await idbGet(`${roomId}_${tab}`);
-    if (blobs && blobs.length) return blobs[0];
-  }
-  return null;
-}
-
-// ─── localStorage (notes & swatches — small text only) ────────────────────
-function recsKey(roomId) { return `recs_${roomId}`; }
-
-function loadRecs(roomId, defaults) {
-  const stored = localStorage.getItem(recsKey(roomId));
-  return stored ? JSON.parse(stored) : defaults;
-}
-
-function persistRecs() {
-  localStorage.setItem(recsKey(roomData.id), JSON.stringify(roomData.recommendations));
-}
-
-function pinnedRefKey(roomId) { return `pinnedRef_${roomId}`; }
-function loadPinnedRef(roomId) {
-  const s = localStorage.getItem(pinnedRefKey(roomId));
-  return s ? JSON.parse(s) : null;
-}
-function savePinnedRef(roomId, ref) {
-  localStorage.setItem(pinnedRefKey(roomId), JSON.stringify(ref));
+async function persistRecs() {
+  const { swatches, paint, flooring, lighting, furniture, generalNotes } = roomData.recommendations;
+  await sb.from('recommendations').upsert({
+    room_id:      roomData.id,
+    paint_notes:  paint?.notes || '',
+    flooring:     flooring || '',
+    lighting:     lighting || '',
+    furniture:    furniture || '',
+    general_notes: generalNotes || '',
+    swatches:     swatches || [],
+    updated_at:   new Date().toISOString()
+  }, { onConflict: 'room_id' });
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────
@@ -97,14 +75,13 @@ async function init() {
   const params = new URLSearchParams(window.location.search);
   const roomId = params.get('id');
 
-  const [roomsRes, colorsRes] = await Promise.all([
-    fetch('data/rooms.json'),
+  const [{ data: rooms }, colorsRes] = await Promise.all([
+    sb.from('rooms').select('*').order('sort_order'),
     fetch('data/bm-colors.json')
   ]);
 
-  const data = await roomsRes.json();
-  bmColors   = await colorsRes.json();
-  allRooms   = data.rooms;
+  bmColors = await colorsRes.json();
+  allRooms = rooms || [];
 
   roomData = allRooms.find(r => r.id === roomId);
   if (!roomData) {
@@ -112,9 +89,7 @@ async function init() {
     return;
   }
 
-  // Notes/swatches from localStorage; photos from IndexedDB
-  roomData.recommendations = loadRecs(roomId, roomData.recommendations);
-  roomData.recommendations.swatches = roomData.recommendations.swatches || [];
+  roomData.recommendations = await loadRecs(roomId);
 
   document.title = roomData.name + ' — StyleMyShack';
   document.getElementById('room-title').textContent       = roomData.name;
@@ -141,8 +116,7 @@ async function renderRoomCarousel() {
   if (!carousel) return;
 
   const items = await Promise.all(allRooms.map(async room => {
-    const blob = await loadRoomThumbBlob(room.id);
-    const url = blob ? URL.createObjectURL(blob) : null;
+    const url = await loadRoomThumb(room.id);
     return { room, url };
   }));
 
@@ -168,9 +142,9 @@ const GALLERY_ICONS = {
 async function renderGallery(tab) {
   const container = document.getElementById('gallery-' + tab);
   const meta      = GALLERY_ICONS[tab];
-  const blobs     = await loadPhotoBlobs(roomData.id, tab);
+  const photos    = await loadPhotos(roomData.id, tab);
 
-  if (blobs.length === 0) {
+  if (photos.length === 0) {
     container.innerHTML = `
       <div class="photo-placeholder">
         <span class="icon">${meta.icon}</span>
@@ -179,13 +153,11 @@ async function renderGallery(tab) {
     return;
   }
 
-  // Create object URLs for display (revoked when replaced)
-  let urls      = blobs.map(b => URL.createObjectURL(b));
+  const urls    = photos.map(p => getPhotoUrl(p.storage_path));
   let activeIdx = 0;
 
   function build() {
-    const pinnedRef      = loadPinnedRef(roomData.id);
-    const isPinnedActive = pinnedRef && pinnedRef.tab === tab && pinnedRef.idx === activeIdx;
+    const isPinnedActive = photos[activeIdx]?.is_pinned;
 
     container.innerHTML = `
       <div class="photo-main-wrap">
@@ -197,7 +169,7 @@ async function renderGallery(tab) {
       ${urls.length > 1 ? `
         <div class="photo-thumbs">
           ${urls.map((u, i) => {
-            const isThisPinned = pinnedRef && pinnedRef.tab === tab && pinnedRef.idx === i;
+            const isThisPinned = photos[i]?.is_pinned;
             return `
               <div class="photo-thumb-wrap">
                 <img class="photo-thumb ${i === activeIdx ? 'active' : ''}"
@@ -216,8 +188,10 @@ async function renderGallery(tab) {
     container.querySelector('.photo-pin-btn').addEventListener('click', async e => {
       e.stopPropagation();
       const idx = +e.currentTarget.dataset.idx;
-      await savePinnedBlob(roomData.id, blobs[idx]);
-      savePinnedRef(roomData.id, { tab, idx });
+      await sb.from('photos').update({ is_pinned: false }).eq('room_id', roomData.id);
+      await sb.from('photos').update({ is_pinned: true }).eq('id', photos[idx].id);
+      photos.forEach(p => p.is_pinned = false);
+      photos[idx].is_pinned = true;
       showBanner('Cover photo updated!');
       build();
       renderRoomCarousel();
@@ -226,15 +200,16 @@ async function renderGallery(tab) {
     container.querySelectorAll('.photo-delete-btn, .photo-main-delete').forEach(btn => {
       btn.addEventListener('click', async e => {
         e.stopPropagation();
-        const idx = +btn.dataset.idx;
-        URL.revokeObjectURL(urls[idx]);
+        const idx   = +btn.dataset.idx;
+        const photo = photos[idx];
+        await sb.storage.from('room-photos').remove([photo.storage_path]);
+        await sb.from('photos').delete().eq('id', photo.id);
+        photos.splice(idx, 1);
         urls.splice(idx, 1);
-        blobs.splice(idx, 1);
-        await savePhotoBlobs(roomData.id, tab, blobs);
-        if (blobs.length === 0) {
-          renderGallery(tab);   // show empty state
+        if (photos.length === 0) {
+          renderGallery(tab);
         } else {
-          activeIdx = Math.min(activeIdx, blobs.length - 1);
+          activeIdx = Math.min(activeIdx, photos.length - 1);
           build();
         }
       });
@@ -252,9 +227,26 @@ function setupUploadListeners() {
       const files = Array.from(input.files);
       if (!files.length) return;
 
-      const existing = await loadPhotoBlobs(roomData.id, tab);
-      await savePhotoBlobs(roomData.id, tab, existing.concat(files));
+      showBanner('Uploading…');
+      for (const file of files) {
+        const path = `${roomData.id}/${tab}/${Date.now()}-${file.name}`;
+        const { error } = await sb.storage.from('room-photos').upload(path, file);
+        if (!error) {
+          await sb.from('photos').insert({
+            room_id:      roomData.id,
+            tab,
+            storage_path: path,
+            is_pinned:    false,
+            sort_order:   Date.now()
+          });
+        } else {
+          console.error('Upload error:', error);
+          showBanner('Upload failed — try again.');
+        }
+      }
+
       input.value = '';
+      showBanner('Uploaded!');
       renderGallery(tab);
     });
   });
@@ -312,11 +304,11 @@ function setupSwatchSearch() {
     }).join('');
 
     results.querySelectorAll('.swatch-result-item:not(.disabled)').forEach(item => {
-      item.addEventListener('click', () => {
+      item.addEventListener('click', async () => {
         const color = bmColors.find(c => c.number === item.dataset.number);
         if (!color) return;
         roomData.recommendations.swatches.push(color);
-        persistRecs();
+        await persistRecs();
         input.value = '';
         results.classList.remove('open');
         results.innerHTML = '';
@@ -369,9 +361,9 @@ function renderSwatches() {
   grid.innerHTML = html;
 
   grid.querySelectorAll('.swatch-remove-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       roomData.recommendations.swatches.splice(+btn.dataset.idx, 1);
-      persistRecs();
+      await persistRecs();
       renderSwatches();
     });
   });
@@ -418,16 +410,16 @@ function buildEditForm(rec) {
       <textarea class="edit-field" id="${id}" rows="${rows}"
         placeholder="${ph}">${escHtml(val || '')}</textarea>
     </div>`;
-  return area('paint-notes',  'Paint Notes',         paint.notes,    'e.g. Eggshell on walls, semi-gloss on trim…')
-       + area('rec-flooring', 'Flooring',             rec.flooring,   'e.g. Wide-plank white oak hardwood…')
-       + area('rec-lighting', 'Lighting',             rec.lighting,   'e.g. Warm Edison bulbs, antler chandelier…')
-       + area('rec-furniture','Furniture &amp; Layout',rec.furniture,  'e.g. Sectional sofa facing the fireplace…')
-       + area('rec-general',  'General Notes',        rec.generalNotes,'Any other recommendations…', 4)
+  return area('paint-notes',  'Paint Notes',          paint.notes,     'e.g. Eggshell on walls, semi-gloss on trim…')
+       + area('rec-flooring', 'Flooring',              rec.flooring,    'e.g. Wide-plank white oak hardwood…')
+       + area('rec-lighting', 'Lighting',              rec.lighting,    'e.g. Warm Edison bulbs, antler chandelier…')
+       + area('rec-furniture','Furniture &amp; Layout', rec.furniture,   'e.g. Sectional sofa facing the fireplace…')
+       + area('rec-general',  'General Notes',         rec.generalNotes,'Any other recommendations…', 4)
        + `<button class="save-btn" id="save-recs-btn">Save</button>`;
 }
 
 // ─── Save ─────────────────────────────────────────────────────────────────
-function saveRecommendations() {
+async function saveRecommendations() {
   const body = document.getElementById('rec-body');
   roomData.recommendations = {
     swatches:     roomData.recommendations.swatches || [],
@@ -437,7 +429,7 @@ function saveRecommendations() {
     furniture:    body.querySelector('#rec-furniture')?.value || '',
     generalNotes: body.querySelector('#rec-general')?.value   || ''
   };
-  persistRecs();
+  await persistRecs();
   showBanner('Saved!');
   renderRecommendations();
 }
