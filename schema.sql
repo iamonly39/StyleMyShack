@@ -63,6 +63,15 @@ ALTER TABLE rooms           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recommendations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE photos          ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies so this script is safe to re-run
+DROP POLICY IF EXISTS "public read settings"      ON settings;
+DROP POLICY IF EXISTS "public read rooms"         ON rooms;
+DROP POLICY IF EXISTS "anon all recommendations"  ON recommendations;
+DROP POLICY IF EXISTS "anon all photos"           ON photos;
+DROP POLICY IF EXISTS "room-photos public read"   ON storage.objects;
+DROP POLICY IF EXISTS "room-photos anon upload"   ON storage.objects;
+DROP POLICY IF EXISTS "room-photos anon delete"   ON storage.objects;
+
 -- Public read-only for rooms/settings
 CREATE POLICY "public read settings" ON settings        FOR SELECT USING (true);
 CREATE POLICY "public read rooms"    ON rooms           FOR SELECT USING (true);
