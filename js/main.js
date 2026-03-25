@@ -1,49 +1,50 @@
-// ─── IndexedDB helpers ────────────────────────────────────────────────────
-let _db = null;
+// ─── Helpers ──────────────────────────────────────────────────────────────
+async function loadRoomThumb(roomId) {
+  const { data: pinned } = await sb.from('photos')
+    .select('storage_path')
+    .eq('room_id', roomId)
+    .eq('is_pinned', true)
+    .maybeSingle();
 
-async function getDB() {
-  if (_db) return _db;
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('StyleMyShack', 1);
-    req.onupgradeneeded = e => e.target.result.createObjectStore('photos');
-    req.onsuccess = e => { _db = e.target.result; resolve(_db); };
-    req.onerror   = () => reject(req.error);
-  });
-}
-
-async function idbGet(key) {
-  try {
-    const db = await getDB();
-    return await new Promise((resolve, reject) => {
-      const req = db.transaction('photos', 'readonly').objectStore('photos').get(key);
-      req.onsuccess = () => resolve(req.result ?? null);
-      req.onerror   = () => reject(req.error);
-    });
-  } catch { return null; }
-}
-
-async function loadRoomThumbBlob(roomId) {
-  const pinned = await idbGet(`${roomId}_pinned`);
-  if (pinned) return pinned;
-  for (const tab of ['actual', 'model3d', 'floorPlan']) {
-    const blobs = await idbGet(`${roomId}_${tab}`);
-    if (blobs && blobs.length) return blobs[0];
+  if (pinned) {
+    return sb.storage.from('room-photos').getPublicUrl(pinned.storage_path).data.publicUrl;
   }
-  return null;
+
+  const { data: first } = await sb.from('photos')
+    .select('storage_path')
+    .eq('room_id', roomId)
+    .order('created_at')
+    .limit(1)
+    .maybeSingle();
+
+  return first
+    ? sb.storage.from('room-photos').getPublicUrl(first.storage_path).data.publicUrl
+    : null;
+}
+
+function hasRecommendations(rec) {
+  if (!rec) return false;
+  return rec.paint_notes || rec.flooring || rec.lighting || rec.furniture || rec.general_notes
+    || (rec.swatches && rec.swatches.length > 0);
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────
 async function init() {
-  const res = await fetch('data/rooms.json');
-  const data = await res.json();
+  const [{ data: rooms }, { data: settings }, { data: recs }] = await Promise.all([
+    sb.from('rooms').select('*').order('sort_order'),
+    sb.from('settings').select('*'),
+    sb.from('recommendations').select('room_id, paint_notes, flooring, lighting, furniture, general_notes, swatches')
+  ]);
 
-  document.getElementById('cabin-name').textContent = data.cabinName;
-  document.title = data.cabinName + ' — StyleMyShack';
+  const cabinName = settings?.find(s => s.key === 'cabin_name')?.value || 'My Cabin';
+  document.getElementById('cabin-name').textContent = cabinName;
+  document.title = cabinName + ' — StyleMyShack';
 
   const grid = document.getElementById('room-grid');
 
-  data.rooms.forEach(room => {
-    const hasRecs = hasRecommendations(room.recommendations);
+  (rooms || []).forEach(room => {
+    const rec     = recs?.find(r => r.room_id === room.id);
+    const hasRecs = hasRecommendations(rec);
 
     const card = document.createElement('a');
     card.className = 'room-card';
@@ -60,10 +61,8 @@ async function init() {
     `;
     grid.appendChild(card);
 
-    // Async-load thumbnail from IndexedDB (pinned photo or first available)
-    loadRoomThumbBlob(room.id).then(blob => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
+    loadRoomThumb(room.id).then(url => {
+      if (!url) return;
       const el = document.getElementById('thumb-' + room.id);
       if (!el) return;
       const img = document.createElement('img');
@@ -73,12 +72,6 @@ async function init() {
       el.replaceWith(img);
     });
   });
-}
-
-function hasRecommendations(recs) {
-  if (!recs) return false;
-  const { paint, flooring, lighting, furniture, generalNotes } = recs;
-  return (paint.primary || paint.accent || paint.trim || paint.notes || flooring || lighting || furniture || generalNotes);
 }
 
 init();
