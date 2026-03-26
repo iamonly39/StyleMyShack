@@ -22,10 +22,10 @@
     </div>
   </section>
 
-  <!-- Room Navigation Carousel -->
-  <div class="room-carousel-wrap">
+  <!-- Room Navigation Strip -->
+  <div class="room-nav-strip-wrap">
     <div class="container">
-      <div class="room-carousel" id="room-carousel">
+      <div class="room-nav-strip" id="room-nav">
         <!-- Populated by room.js -->
       </div>
     </div>
@@ -78,26 +78,6 @@
             </div>
           </div>
 
-          <!-- Benjamin Moore Swatch Panel -->
-          <div class="swatch-panel" id="swatch-panel">
-            <div class="swatch-panel-header">
-              <span class="swatch-panel-title">Benjamin Moore Colors</span>
-              <span class="swatch-panel-hint" id="swatch-hint">Select up to 4</span>
-            </div>
-
-            <!-- Color search (edit mode only) -->
-            <div class="swatch-search-wrap" id="swatch-search-wrap" style="display:none">
-              <input type="text" class="swatch-search" id="swatch-search"
-                     placeholder="Search by name or number (e.g. Revere Pewter, HC-172)…" />
-              <div class="swatch-results" id="swatch-results"></div>
-            </div>
-
-            <!-- 2×2 swatch grid -->
-            <div class="swatch-grid" id="swatch-grid">
-              <!-- Populated by room.js -->
-            </div>
-          </div>
-
           <!-- Recommendations Panel -->
           <div class="rec-panel">
             <div class="rec-panel-header">
@@ -111,6 +91,24 @@
           </div>
 
         </div>
+
+        <!-- Thread / Messages -->
+        <div class="thread-section">
+          <button class="thread-toggle" id="thread-toggle">
+            <span class="thread-arrow" id="thread-arrow">&#9654;</span>
+            Messages
+            <span class="thread-count" id="thread-count"></span>
+          </button>
+          <div class="thread-body" id="thread-body">
+            <div id="messages-list"></div>
+            <div class="draft-indicator" id="draft-indicator" style="display:none"></div>
+            <div class="thread-compose">
+              <textarea id="compose-area" placeholder="Write a message…"></textarea>
+              <button class="btn-primary-small" id="send-btn">Send</button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </main>
@@ -120,7 +118,7 @@
   </footer>
 
   <!-- Save Banner -->
-  <div class="save-banner" id="save-banner">Recommendations saved to JSON!</div>
+  <div class="save-banner" id="save-banner"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js"></script>
