@@ -21,6 +21,22 @@
     </div>
   </section>
 
+  <!-- Site photo carousel -->
+  <section class="home-carousel-section">
+    <div class="container">
+      <div class="home-carousel-wrap" id="home-carousel-wrap">
+        <!-- Slides injected by main.js -->
+      </div>
+      <div class="home-carousel-bar">
+        <div class="home-carousel-dots" id="home-carousel-dots"></div>
+        <span class="home-carousel-counter" id="home-carousel-counter"></span>
+        <label class="home-carousel-upload" for="site-photo-upload">+ Add photos
+          <input type="file" id="site-photo-upload" accept="image/*" multiple class="hidden-input" />
+        </label>
+      </div>
+    </div>
+  </section>
+
   <main>
     <section class="rooms-section">
       <div class="container">
@@ -35,6 +51,8 @@
   <footer class="site-footer">
     <p>StyleMyShack &mdash; Interior design, room by room.</p>
   </footer>
+
+  <div class="save-banner" id="save-banner"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js"></script>
