@@ -99,6 +99,21 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   font-size: 1.1rem;
 }
 
+.page-hero h1 {
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 2px 8px;
+  transition: background var(--transition);
+  outline: none;
+}
+
+.page-hero h1:hover { background: rgba(255,255,255,0.1); }
+.page-hero h1.title-editing {
+  background: rgba(255,255,255,0.15);
+  outline: 2px solid rgba(255,255,255,0.4);
+  cursor: text;
+}
+
 /* ─── Home Carousel ──────────────────────────────────────────────────────── */
 .home-carousel-section {
   background: var(--warm-white);
@@ -286,6 +301,14 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 
 /* .room-status replaced by .status-badge (see Home Carousel section above) */
 
+.rooms-empty {
+  font-family: system-ui, sans-serif;
+  font-size: 0.9rem;
+  color: var(--stone);
+  font-style: italic;
+  padding: 1rem 0;
+}
+
 /* ─── Room Detail Page ───────────────────────────────────────────────────── */
 .room-detail {
   padding: 2.5rem 0 4rem;
@@ -354,6 +377,7 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   object-fit: cover;
   border-radius: var(--radius);
   background: var(--cream);
+  cursor: zoom-in;
 }
 
 .photo-placeholder {
@@ -372,6 +396,22 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 
 .photo-placeholder .icon { font-size: 2.5rem; }
 .photo-placeholder p { font-size: 0.85rem; }
+
+.photo-placeholder-upload {
+  cursor: pointer;
+  transition: background var(--transition), opacity var(--transition);
+}
+
+.photo-placeholder-upload:hover { opacity: 0.85; }
+
+.placeholder-upload-hint {
+  font-size: 0.75rem;
+  color: var(--bark);
+  border: 1px dashed var(--bark-light);
+  border-radius: 20px;
+  padding: 3px 12px;
+  margin-top: 4px;
+}
 
 .photo-thumbs {
   display: flex;
@@ -491,6 +531,232 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   color: var(--stone);
   font-style: italic;
 }
+
+/* ─── Recommendation Item Cards ──────────────────────────────────────────── */
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item-card {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: var(--warm-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.item-photo {
+  width: 72px;
+  height: 72px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--cream);
+  border: 1px solid var(--border);
+}
+
+.item-photo img { width: 100%; height: 100%; object-fit: cover; }
+
+.item-photo-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: var(--stone-light);
+}
+
+.item-content { flex: 1; min-width: 0; }
+
+.item-name {
+  font-family: system-ui, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+
+.item-note {
+  font-family: system-ui, sans-serif;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  margin-bottom: 6px;
+}
+
+.item-link-btn {
+  display: inline-block;
+  font-family: system-ui, sans-serif;
+  font-size: 0.75rem;
+  color: var(--bark);
+  border: 1px solid var(--bark-light);
+  border-radius: 4px;
+  padding: 2px 8px;
+  margin-bottom: 6px;
+  transition: background var(--transition);
+}
+
+.item-link-btn:hover { background: var(--cream); }
+
+/* Edit mode items */
+.items-edit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.item-edit-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px;
+  background: var(--warm-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.item-edit-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.item-input {
+  width: 100%;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: white;
+  transition: border-color var(--transition);
+}
+
+.item-input:focus { outline: none; border-color: var(--bark-light); }
+.item-input.item-name-input { font-weight: 600; }
+.item-input.item-link-input,
+.item-input.item-photo-input { font-size: 0.78rem; color: var(--text-muted); }
+
+.item-remove-btn {
+  background: none;
+  border: none;
+  color: var(--stone);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 4px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: color var(--transition), background var(--transition);
+}
+
+.item-remove-btn:hover { color: var(--text); background: var(--cream); }
+
+.add-item-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-family: system-ui, sans-serif;
+  color: var(--bark);
+  cursor: pointer;
+  background: none;
+  border: 1px dashed var(--bark-light);
+  border-radius: 6px;
+  padding: 5px 14px;
+  margin-top: 4px;
+  transition: background var(--transition);
+}
+
+.add-item-btn:hover { background: var(--cream); }
+
+/* ─── Inline Editing ─────────────────────────────────────────────────────── */
+.item-card-clickable {
+  cursor: pointer;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.item-card-clickable:hover {
+  border-color: var(--bark-light);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.item-photo-previewable { cursor: zoom-in; }
+
+.item-card-editing {
+  border-color: var(--bark-light);
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item-card-editing .item-edit-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+}
+
+.inline-edit-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.inline-save-btn {
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: none;
+  background: var(--bark);
+  color: white;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.inline-save-btn:hover { background: var(--bark-dark); }
+
+.inline-cancel-btn {
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.inline-cancel-btn:hover { background: var(--cream); }
+
+.inline-delete-btn {
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  color: var(--stone);
+  cursor: pointer;
+  margin-left: auto;
+  transition: color var(--transition), background var(--transition);
+}
+
+.inline-delete-btn:hover { color: #c0392b; background: #fdf0ee; }
+
+.rec-text-editable {
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background var(--transition);
+}
+
+.rec-text-editable:hover { background: var(--cream); }
 
 /* ─── Edit Mode ──────────────────────────────────────────────────────────── */
 .edit-toggle-btn {
@@ -660,6 +926,64 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 }
 
 .save-banner.show { transform: translateX(-50%) translateY(0); }
+
+/* ─── Lightbox ───────────────────────────────────────────────────────────── */
+#photo-lightbox {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+
+#photo-lightbox.open { display: flex; align-items: center; justify-content: center; }
+
+.lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+}
+
+.lightbox-frame {
+  position: relative;
+  z-index: 1;
+  max-width: 92vw;
+  max-height: 92vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lightbox-img {
+  max-width: 92vw;
+  max-height: 92vh;
+  object-fit: contain;
+  border-radius: var(--radius);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+  display: block;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: -14px;
+  right: -14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: white;
+  color: var(--charcoal);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  transition: background var(--transition);
+  z-index: 2;
+}
+
+.lightbox-close:hover { background: var(--cream); }
 
 /* ─── Footer ─────────────────────────────────────────────────────────────── */
 .site-footer {

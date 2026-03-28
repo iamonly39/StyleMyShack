@@ -61,10 +61,19 @@ ON CONFLICT DO NOTHING;
 ALTER TABLE rooms ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'not-started'
   CHECK (status IN ('complete', 'in-progress', 'not-started'));
 
+-- Expand photos tab constraint to include 'inspiration'
+ALTER TABLE photos DROP CONSTRAINT IF EXISTS photos_tab_check;
+ALTER TABLE photos ADD CONSTRAINT photos_tab_check
+  CHECK (tab IN ('actual', 'model3d', 'floorPlan', 'inspiration'));
+
 ALTER TABLE recommendations
   ADD COLUMN IF NOT EXISTS swatch_sets     JSONB DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS client_swatches JSONB DEFAULT '[]'::jsonb,
-  ADD COLUMN IF NOT EXISTS reactions       JSONB DEFAULT '{}'::jsonb;
+  ADD COLUMN IF NOT EXISTS reactions       JSONB DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS paint_items     JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS flooring_items  JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS lighting_items  JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS furniture_items JSONB DEFAULT '[]'::jsonb;
 
 CREATE TABLE IF NOT EXISTS site_photos (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -4,29 +4,6 @@ let homeTimer = null;
 let sitePhotos = [];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
-async function loadRoomThumb(roomId) {
-  const { data: pinned } = await sb.from('photos')
-    .select('storage_path')
-    .eq('room_id', roomId)
-    .eq('is_pinned', true)
-    .maybeSingle();
-
-  if (pinned) {
-    return sb.storage.from('room-photos').getPublicUrl(pinned.storage_path).data.publicUrl;
-  }
-
-  const { data: first } = await sb.from('photos')
-    .select('storage_path')
-    .eq('room_id', roomId)
-    .order('created_at')
-    .limit(1)
-    .maybeSingle();
-
-  return first
-    ? sb.storage.from('room-photos').getPublicUrl(first.storage_path).data.publicUrl
-    : null;
-}
-
 function showBanner(msg) {
   const banner = document.getElementById('save-banner');
   if (!banner) return;
@@ -35,53 +12,113 @@ function showBanner(msg) {
   setTimeout(() => banner.classList.remove('show'), 3000);
 }
 
+function fmtStatus(s) {
+  return s === 'complete'    ? 'Complete'
+       : s === 'in-progress' ? 'In Progress'
+       : 'Not Started';
+}
+
+async function loadRoomThumb(roomId) {
+  const { data: pinned } = await sb.from('photos')
+    .select('storage_path')
+    .eq('room_id', roomId)
+    .eq('is_pinned', true)
+    .maybeSingle();
+
+  if (pinned) return sb.storage.from('room-photos').getPublicUrl(pinned.storage_path).data.publicUrl;
+
+  const { data: first } = await sb.from('photos')
+    .select('storage_path')
+    .eq('room_id', roomId)
+    .order('created_at')
+    .limit(1)
+    .maybeSingle();
+
+  return first ? sb.storage.from('room-photos').getPublicUrl(first.storage_path).data.publicUrl : null;
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────
 async function init() {
-  const [{ data: rooms }, { data: settings }, { data: sitePhotoRows }] = await Promise.all([
+  const [roomsRes, settingsRes, sitePhotosRes] = await Promise.all([
     sb.from('rooms').select('*').order('sort_order'),
     sb.from('settings').select('*'),
     sb.from('site_photos').select('*').order('sort_order')
   ]);
 
-  const cabinName = settings?.find(s => s.key === 'cabin_name')?.value || 'My Cabin';
-  document.getElementById('cabin-name').textContent = cabinName;
+  // Cabin name
+  const cabinName = settingsRes.data?.find(s => s.key === 'cabin_name')?.value || 'My Cabin';
+  const nameEl = document.getElementById('cabin-name');
+  nameEl.textContent = cabinName;
   document.title = cabinName + ' — StyleMyShack';
 
-  const grid = document.getElementById('room-grid');
-
-  (rooms || []).forEach(room => {
-    const status = room.status || 'not-started';
-    const statusLabel = status === 'complete' ? 'Complete'
-                      : status === 'in-progress' ? 'In Progress'
-                      : 'Not Started';
-
-    const card = document.createElement('a');
-    card.className = 'room-card';
-    card.href = `room.html?id=${room.id}`;
-    card.innerHTML = `
-      <div class="room-card-photo placeholder" id="thumb-${room.id}">${room.emoji}</div>
-      <div class="room-card-body">
-        <h3>${room.name}</h3>
-        <p>${room.description}</p>
-        <span class="status-badge ${status}">${statusLabel}</span>
-      </div>
-    `;
-    grid.appendChild(card);
-
-    loadRoomThumb(room.id).then(url => {
-      if (!url) return;
-      const el = document.getElementById('thumb-' + room.id);
-      if (!el) return;
-      const img = document.createElement('img');
-      img.className = 'room-card-photo';
-      img.src = url;
-      img.alt = room.name;
-      el.replaceWith(img);
-    });
+  let savedName = cabinName;
+  nameEl.addEventListener('click', () => {
+    if (nameEl.contentEditable === 'true') return;
+    nameEl.contentEditable = 'true';
+    nameEl.classList.add('title-editing');
+    nameEl.focus();
+    const range = document.createRange();
+    range.selectNodeContents(nameEl);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  });
+  nameEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); }
+    if (e.key === 'Escape') { nameEl.textContent = savedName; nameEl.blur(); }
+  });
+  nameEl.addEventListener('blur', async () => {
+    nameEl.contentEditable = 'false';
+    nameEl.classList.remove('title-editing');
+    const newName = nameEl.textContent.trim() || savedName;
+    nameEl.textContent = newName;
+    if (newName !== savedName) {
+      savedName = newName;
+      document.title = newName + ' — StyleMyShack';
+      await sb.from('settings').upsert({ key: 'cabin_name', value: newName }, { onConflict: 'key' });
+      showBanner('Saved!');
+    }
   });
 
+  // Room cards
+  const rooms = roomsRes.data || [];
+  const grid  = document.getElementById('room-grid');
+  const empty = document.getElementById('rooms-empty');
+
+  if (rooms.length === 0) {
+    empty.style.display = '';
+  } else {
+    rooms.forEach(room => {
+      const status = room.status || 'not-started';
+      const card = document.createElement('a');
+      card.className = 'room-card';
+      card.href = `room.html?id=${room.id}`;
+      card.innerHTML = `
+        <div class="room-card-photo placeholder" id="thumb-${room.id}">${room.emoji || '🏠'}</div>
+        <div class="room-card-body">
+          <h3>${room.name}</h3>
+          <p>${room.description || ''}</p>
+          <span class="status-badge ${status}">${fmtStatus(status)}</span>
+        </div>
+      `;
+      grid.appendChild(card);
+
+      // Load thumbnail async — swap in when ready
+      loadRoomThumb(room.id).then(url => {
+        if (!url) return;
+        const el = document.getElementById('thumb-' + room.id);
+        if (!el) return;
+        const img = document.createElement('img');
+        img.className = 'room-card-photo';
+        img.src = url;
+        img.alt = room.name;
+        el.replaceWith(img);
+      });
+    });
+  }
+
   // Home carousel
-  const photos = (sitePhotoRows || []).map(row => ({
+  const photos = (sitePhotosRes.data || []).map(row => ({
     ...row,
     publicUrl: sb.storage.from('room-photos').getPublicUrl(row.storage_path).data.publicUrl
   }));
@@ -92,7 +129,7 @@ async function init() {
 // ─── Home Carousel ─────────────────────────────────────────────────────────
 function initHomeCarousel(photos) {
   sitePhotos = photos;
-  homeSlide = 0;
+  homeSlide  = 0;
   renderHomeCarousel();
   startHomeTimer();
 }
@@ -111,7 +148,7 @@ function renderHomeCarousel() {
           <p>Got photos of the cabin? Add them here so the designer can see the space.</p>
         </div>
       </div>`;
-    dotsEl.innerHTML = '';
+    dotsEl.innerHTML  = '';
     counter.textContent = '';
     return;
   }
@@ -127,12 +164,11 @@ function renderHomeCarousel() {
       `<div class="home-carousel-dot${i === homeSlide ? ' active' : ''}" data-idx="${i}"></div>`
     ).join('');
     counter.textContent = `${homeSlide + 1} / ${sitePhotos.length}`;
-
     dotsEl.querySelectorAll('.home-carousel-dot').forEach(dot => {
       dot.addEventListener('click', () => goToSlide(+dot.dataset.idx));
     });
   } else {
-    dotsEl.innerHTML = '';
+    dotsEl.innerHTML    = '';
     counter.textContent = '1 photo';
   }
 }
@@ -163,9 +199,11 @@ function startHomeTimer() {
   }
 }
 
+// ─── Site Photo Upload ─────────────────────────────────────────────────────
 function setupSitePhotoUpload() {
   const input = document.getElementById('site-photo-upload');
   if (!input) return;
+
   input.addEventListener('change', async () => {
     const files = Array.from(input.files);
     if (!files.length) return;
@@ -187,11 +225,13 @@ function setupSitePhotoUpload() {
         }
       } else {
         console.error('Upload error:', error);
+        showBanner('Upload failed — try again.');
+        return;
       }
     }
 
     input.value = '';
-    homeSlide = Math.max(0, sitePhotos.length - 1);
+    homeSlide = sitePhotos.length - 1;
     renderHomeCarousel();
     startHomeTimer();
     showBanner('Uploaded!');
