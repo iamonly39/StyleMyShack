@@ -1117,124 +1117,238 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   margin-bottom: 0.65rem;
 }
 
-.swatch-set-name {
+.swatch-set-name-input {
   font-size: 0.85rem;
+  font-weight: 600;
+  font-family: system-ui, sans-serif;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 3px 8px;
+  background: transparent;
+  color: var(--bark-dark);
+  width: 160px;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.swatch-set-name-input:hover { border-color: var(--border); background: white; }
+.swatch-set-name-input:focus { outline: none; border-color: var(--bark-light); background: white; }
+
+/* Compact swatch circles */
+.swatches-compact-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+  padding-bottom: 28px;
+}
+
+.swatch-circle-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px var(--border);
+  cursor: pointer;
+  padding: 0;
+  position: relative;
+  transition: transform 0.15s, box-shadow 0.15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  overflow: visible;
+}
+
+.swatch-circle-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 0 2px var(--bark-light), 0 4px 10px var(--shadow);
+}
+
+.swatch-circle-role {
+  position: absolute;
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.68rem;
+  font-family: system-ui, sans-serif;
+  color: var(--stone);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.swatch-circle-label {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.6rem;
+  font-family: system-ui, sans-serif;
+  color: var(--text-muted);
+  white-space: nowrap;
+  pointer-events: none;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.swatch-add-circle-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 2px dashed var(--bark-light);
+  background: none;
+  color: var(--bark);
+  font-size: 1.4rem;
+  cursor: pointer;
+  transition: background var(--transition);
+  line-height: 1;
+  padding: 0;
+}
+
+.swatch-add-circle-btn:hover { background: rgba(0,0,0,0.04); }
+
+.add-set-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--bark);
+  cursor: pointer;
+  background: none;
+  border: 1px dashed var(--bark-light);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-family: system-ui, sans-serif;
+  transition: background var(--transition);
+  margin-top: 0.5rem;
+}
+
+.add-set-btn:hover { background: var(--cream); }
+
+/* ─── Swatch Editor Popover ──────────────────────────────────────────────── */
+.swatch-editor-popover {
+  display: none;
+  position: absolute;
+  z-index: 200;
+  width: 280px;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+  padding: 0;
+  overflow: hidden;
+}
+
+.swatch-editor-popover.open { display: block; }
+
+.sep-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sep-title {
+  font-size: 0.82rem;
   font-weight: 600;
   font-family: system-ui, sans-serif;
   color: var(--bark-dark);
 }
 
-.swatch-set-name-input {
-  font-size: 0.85rem;
-  font-family: system-ui, sans-serif;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 3px 8px;
-  background: white;
-  width: 160px;
-}
-
-.swatch-set-name-input:focus { outline: none; border-color: var(--bark-light); }
-
-.swatch-slot {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  margin-bottom: 0.5rem;
-}
-
-.swatch-circle {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  border: 2px solid white;
-  box-shadow: 0 0 0 1px var(--border);
-}
-
-.swatch-circle-input {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
+.sep-close {
+  background: none;
+  border: none;
   cursor: pointer;
-  padding: 0;
-  overflow: hidden;
-  flex-shrink: 0;
+  color: var(--stone);
+  font-size: 0.85rem;
+  padding: 0 2px;
+  line-height: 1;
 }
 
-.swatch-circle-input::-webkit-color-swatch-wrapper { padding: 0; }
-.swatch-circle-input::-webkit-color-swatch { border: none; border-radius: 50%; }
-
-.swatch-role {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  font-family: system-ui, sans-serif;
-  flex-shrink: 0;
+.sep-preview {
+  height: 64px;
+  transition: background 0.1s;
 }
 
-.swatch-color-label {
-  font-size: 0.8rem;
-  color: var(--text);
-}
-
-.swatch-role-input {
-  font-size: 0.8rem;
-  font-family: system-ui, sans-serif;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 2px 6px;
-  background: white;
-  width: 70px;
-}
-
-.swatch-color-label-input {
-  font-size: 0.8rem;
-  font-family: system-ui, sans-serif;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 2px 6px;
-  background: white;
-  flex: 1;
-}
-
-.swatch-role-input:focus,
-.swatch-color-label-input:focus { outline: none; border-color: var(--bark-light); }
-
-/* BM color search inside swatch slots */
-.swatch-slot { align-items: flex-start; }
-
-.swatch-slot-fields {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.swatch-slot-row2 {
-  display: flex;
-  gap: 6px;
-}
-
-.bm-search-wrap {
+.swatch-editor-popover .bm-search-wrap {
+  padding: 10px 14px 4px;
   position: relative;
 }
 
-.bm-swatch-search {
+.sep-bm-search {
   width: 100%;
-  padding: 4px 8px;
+  padding: 6px 10px;
   border: 1px solid var(--border);
-  border-radius: 4px;
-  font-size: 0.8rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
   font-family: system-ui, sans-serif;
-  background: white;
+  background: var(--cream);
   color: var(--text);
+  box-sizing: border-box;
 }
 
-.bm-swatch-search:focus {
-  outline: none;
-  border-color: var(--bark-light);
+.sep-bm-search:focus { outline: none; border-color: var(--bark-light); background: white; }
+
+.swatch-editor-popover .bm-swatch-results {
+  left: 14px;
+  right: 14px;
+  top: calc(100% - 4px);
 }
+
+.sep-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+}
+
+.sep-row input[type="color"] {
+  width: 36px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.sep-row input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.sep-row input[type="color"]::-webkit-color-swatch { border: none; border-radius: 4px; }
+
+.sep-row #sep-label,
+#sep-role {
+  font-size: 0.8rem;
+  font-family: system-ui, sans-serif;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 9px;
+  background: var(--cream);
+  color: var(--text);
+  flex: 1;
+}
+
+#sep-role {
+  display: block;
+  width: calc(100% - 28px);
+  margin: 0 14px 6px;
+  box-sizing: border-box;
+}
+
+.sep-row #sep-label:focus,
+#sep-role:focus { outline: none; border-color: var(--bark-light); background: white; }
+
+.sep-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px 12px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+/* BM search results (shared) */
+.bm-search-wrap { position: relative; }
 
 .bm-swatch-results {
   display: none;
@@ -1247,7 +1361,7 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   border-radius: 0 0 6px 6px;
   max-height: 200px;
   overflow-y: auto;
-  z-index: 30;
+  z-index: 250;
   box-shadow: 0 6px 16px var(--shadow);
 }
 
@@ -1277,37 +1391,6 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 .bm-result-name { font-weight: 600; color: var(--text); }
 .bm-result-num  { color: var(--stone); font-size: 0.75rem; margin-left: auto; }
 .bm-result-empty { padding: 8px 10px; font-size: 0.82rem; color: var(--stone); font-family: system-ui, sans-serif; font-style: italic; }
-
-.swatch-slot-remove {
-  font-size: 0.7rem;
-  color: var(--stone);
-  cursor: pointer;
-  background: none;
-  border: none;
-  font-family: system-ui, sans-serif;
-  padding: 2px 6px;
-}
-
-.swatch-slot-remove:hover { color: var(--bark-dark); }
-
-.swatch-set-actions { margin-top: 0.5rem; }
-
-.add-set-btn {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.8rem;
-  color: var(--bark);
-  cursor: pointer;
-  background: none;
-  border: 1px dashed var(--bark-light);
-  border-radius: 6px;
-  padding: 6px 14px;
-  font-family: system-ui, sans-serif;
-  transition: background var(--transition);
-}
-
-.add-set-btn:hover { background: var(--cream); }
 
 /* ─── Client Swatches ────────────────────────────────────────────────────── */
 .client-swatches-section {
@@ -1470,6 +1553,20 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 }
 
 .btn-danger-small:hover { background: #fdf0ed; }
+
+.btn-danger-tiny {
+  background: none;
+  color: #c47a6a;
+  border: none;
+  padding: 2px 6px;
+  font-size: 0.72rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: system-ui, sans-serif;
+  transition: background var(--transition);
+}
+
+.btn-danger-tiny:hover { background: #fdf0ed; }
 
 /* ─── Thread / Messages ──────────────────────────────────────────────────── */
 .thread-section { margin-top: 2rem; }

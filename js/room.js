@@ -84,7 +84,7 @@ async function loadRecs(roomId) {
 
 async function persistRecs() {
   const rec = roomData.recommendations;
-  await sb.from('recommendations').upsert({
+  const { error } = await sb.from('recommendations').upsert({
     room_id:         roomData.id,
     paint_items:     rec.paint_items     || [],
     flooring_items:  rec.flooring_items  || [],
@@ -96,6 +96,10 @@ async function persistRecs() {
     reactions:       rec.reactions       || {},
     updated_at:      new Date().toISOString()
   }, { onConflict: 'room_id' });
+  if (error) {
+    showBanner('Save failed: ' + error.message);
+    throw error;
+  }
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────
@@ -334,6 +338,7 @@ function renderRecommendations() {
     body.innerHTML = buildViewPanel(roomData.recommendations);
     setupReactionListeners();
     setupInlineEditListeners();
+    setupSwatchSetListeners();
     setupClientSwatchListeners();
   }
 }
@@ -404,7 +409,7 @@ function buildViewPanel(rec) {
   html += '</div>';
 
   html += `<div class="rec-section"><div class="rec-section-label">Color Palettes</div>
-    ${renderSwatchSets(rec.swatch_sets || [], false)}
+    ${renderSwatchSets(rec.swatch_sets || [])}
   </div>`;
 
   html += renderClientSwatches(rec.client_swatches || []);
@@ -432,7 +437,7 @@ function buildEditForm(rec) {
   </div>`;
 
   html += `<div class="rec-section"><div class="rec-section-label">Color Palettes</div>
-    ${renderSwatchSets(rec.swatch_sets || [], true)}
+    ${renderSwatchSets(rec.swatch_sets || [])}
   </div>`;
 
   html += renderClientSwatches(rec.client_swatches || []);
@@ -522,57 +527,36 @@ function renderReactionStrip(fieldKey, reactions) {
   return html + '</div>';
 }
 
-function renderSwatchSets(sets, inEdit) {
+function renderSwatchSets(sets) {
   let html = '<div class="swatch-sets-area">';
 
-  if (!sets.length && !inEdit) {
+  if (!sets.length) {
     html += '<span class="rec-empty">No palettes yet.</span>';
   }
 
   sets.forEach((set, si) => {
-    html += `<div class="swatch-set"><div class="swatch-set-header">`;
-    if (inEdit) {
-      html += `<input class="swatch-set-name-input" data-set-name="${si}" value="${escHtml(set.name || '')}">`;
-      html += `<button class="btn-danger-small" data-remove-set="${si}">Remove set</button>`;
-    } else {
-      html += `<span class="swatch-set-name">${escHtml(set.name || 'Palette')}</span>`;
-    }
-    html += '</div>';
+    html += `<div class="swatch-set">
+      <div class="swatch-set-header">
+        <input class="swatch-set-name-input" data-set-name="${si}" value="${escHtml(set.name || '')}" placeholder="Palette name">
+        <button class="btn-danger-tiny" data-remove-set="${si}">Remove</button>
+      </div>
+      <div class="swatches-compact-row">`;
 
     (set.swatches || []).forEach((sw, swi) => {
-      html += '<div class="swatch-slot">';
-      if (inEdit) {
-        html += `<input type="color" class="swatch-circle-input" data-set="${si}" data-sw="${swi}" value="${sw.color || '#CCCCCC'}">`;
-        html += `<div class="swatch-slot-fields">
-          <div class="bm-search-wrap">
-            <input type="text" class="bm-swatch-search" data-search-set="${si}" data-search-sw="${swi}"
-              placeholder="Search Benjamin Moore…" autocomplete="off">
-            <div class="bm-swatch-results" id="bm-res-${si}-${swi}"></div>
-          </div>
-          <div class="swatch-slot-row2">
-            <input class="swatch-role-input" data-set-role="${si}-${swi}" value="${escHtml(sw.role || '')}" placeholder="Role">
-            <input class="swatch-color-label-input" data-set-label="${si}-${swi}" value="${escHtml(sw.label || '')}" placeholder="Color name">
-          </div>
-        </div>`;
-        html += `<button class="swatch-slot-remove" data-remove-swatch="${si}-${swi}">✕</button>`;
-      } else {
-        html += `<div class="swatch-circle" style="background:${sw.color || '#CCCCCC'}"></div>`;
-        html += `<span class="swatch-role">${escHtml(sw.role || '')}</span>`;
-        if (sw.label) html += `<span class="swatch-color-label">— ${escHtml(sw.label)}</span>`;
-      }
-      html += '</div>';
+      html += `<button class="swatch-circle-btn" data-open-swatch="${si}-${swi}"
+               style="background:${sw.color || '#CCCCCC'}"
+               title="${escHtml(sw.role || '')}">
+        <span class="swatch-circle-role">${escHtml(sw.role || '')}</span>
+        ${sw.label ? `<span class="swatch-circle-label">${escHtml(sw.label)}</span>` : ''}
+      </button>`;
     });
 
-    if (inEdit) {
-      html += `<div class="swatch-set-actions"><button class="btn-sm-secondary" data-add-swatch="${si}">+ Add swatch</button></div>`;
-    }
-    html += '</div>';
+    html += `<button class="swatch-add-circle-btn" data-add-swatch="${si}" title="Add swatch">+</button>
+      </div>
+    </div>`;
   });
 
-  if (inEdit) {
-    html += '<button class="add-set-btn" id="add-palette-set">+ Add palette set</button>';
-  }
-
+  html += '<button class="add-set-btn" id="add-palette-set">+ Add palette</button>';
   html += '</div>';
   return html;
 }
@@ -633,17 +617,29 @@ function setupReactionListeners() {
 function setupSwatchSetListeners() {
   const body = document.getElementById('rec-body');
 
+  // Palette name auto-save on blur
+  body.querySelectorAll('[data-set-name]').forEach(input => {
+    input.addEventListener('blur', async () => {
+      const si = +input.dataset.setName;
+      if (roomData.recommendations.swatch_sets[si]) {
+        roomData.recommendations.swatch_sets[si].name = input.value;
+        await persistRecs();
+      }
+    });
+  });
+
+  // Remove palette
   body.querySelectorAll('[data-remove-set]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      gatherSwatchEdits();
+    btn.addEventListener('click', async () => {
       roomData.recommendations.swatch_sets.splice(+btn.dataset.removeSet, 1);
+      await persistRecs();
       renderRecommendations();
     });
   });
 
+  // Add swatch — open popover on the new slot
   body.querySelectorAll('[data-add-swatch]').forEach(btn => {
     btn.addEventListener('click', () => {
-      gatherSwatchEdits();
       const si    = +btn.dataset.addSwatch;
       const roles = DEFAULT_ROLES[roomData.id] || DEFAULT_ROLES._default;
       const count = roomData.recommendations.swatch_sets[si].swatches.length;
@@ -651,97 +647,164 @@ function setupSwatchSetListeners() {
         role: roles[count] || 'New', color: '#CCCCCC', label: ''
       });
       renderRecommendations();
+      const newSwi = roomData.recommendations.swatch_sets[si].swatches.length - 1;
+      setTimeout(() => openSwatchPopover(si, newSwi), 0);
     });
   });
 
-  body.querySelectorAll('[data-remove-swatch]').forEach(btn => {
+  // Open swatch editor popover
+  body.querySelectorAll('[data-open-swatch]').forEach(btn => {
     btn.addEventListener('click', () => {
-      gatherSwatchEdits();
-      const [si, swi] = btn.dataset.removeSwatch.split('-').map(Number);
-      roomData.recommendations.swatch_sets[si].swatches.splice(swi, 1);
-      renderRecommendations();
+      const [si, swi] = btn.dataset.openSwatch.split('-').map(Number);
+      openSwatchPopover(si, swi);
     });
   });
 
+  // Add new palette
   const addSetBtn = body.querySelector('#add-palette-set');
   if (addSetBtn) {
-    addSetBtn.addEventListener('click', () => {
-      gatherSwatchEdits();
+    addSetBtn.addEventListener('click', async () => {
       const sets  = roomData.recommendations.swatch_sets;
       const roles = DEFAULT_ROLES[roomData.id] || DEFAULT_ROLES._default;
       sets.push({
         name:     'Palette ' + String.fromCharCode(65 + sets.length),
         swatches: roles.map(r => ({ role: r, color: '#CCCCCC', label: '' }))
       });
+      await persistRecs();
       renderRecommendations();
     });
   }
+}
 
-  // BM color search per swatch slot
-  body.querySelectorAll('.bm-swatch-search').forEach(input => {
-    const si       = +input.dataset.searchSet;
-    const swi      = +input.dataset.searchSw;
-    const resultsEl = document.getElementById(`bm-res-${si}-${swi}`);
+// ─── Swatch Popover ────────────────────────────────────────────────────────
+let swatchPopoverTarget = null;
 
-    input.addEventListener('input', () => {
-      const q = input.value.trim().toLowerCase();
-      if (!q || q.length < 2) { resultsEl.innerHTML = ''; resultsEl.classList.remove('open'); return; }
+function openSwatchPopover(si, swi) {
+  swatchPopoverTarget = { si, swi };
+  const set = roomData.recommendations.swatch_sets[si];
+  const sw  = set.swatches[swi];
 
-      const matches = bmColors
-        .filter(c => c.name.toLowerCase().includes(q) || c.number.toLowerCase().includes(q))
-        .slice(0, 12);
+  let pop = document.getElementById('swatch-editor-popover');
+  if (!pop) {
+    pop = document.createElement('div');
+    pop.id = 'swatch-editor-popover';
+    pop.className = 'swatch-editor-popover';
+    document.body.appendChild(pop);
+  }
 
-      if (!matches.length) { resultsEl.innerHTML = '<div class="bm-result-empty">No colors found</div>'; resultsEl.classList.add('open'); return; }
+  pop.innerHTML = `
+    <div class="sep-header">
+      <span class="sep-title">${escHtml(sw.role || 'Swatch')}</span>
+      <button class="sep-close" id="sep-close">✕</button>
+    </div>
+    <div class="sep-preview" id="sep-preview" style="background:${sw.color || '#CCCCCC'}"></div>
+    <div class="bm-search-wrap">
+      <input type="text" class="sep-bm-search" id="sep-bm-search"
+             placeholder="Search Benjamin Moore…" autocomplete="off">
+      <div class="bm-swatch-results" id="sep-bm-results"></div>
+    </div>
+    <div class="sep-row">
+      <input type="color" id="sep-color" value="${sw.color || '#CCCCCC'}" title="Pick any color">
+      <input type="text" id="sep-label" placeholder="Color name (e.g. White Dove OC-17)" value="${escHtml(sw.label || '')}">
+    </div>
+    <input type="text" id="sep-role" placeholder="Role (e.g. Wall, Trim, Accent)" value="${escHtml(sw.role || '')}">
+    <div class="sep-actions">
+      <button class="btn-primary-small" id="sep-done">Done</button>
+      <button class="btn-danger-tiny" id="sep-remove">Remove swatch</button>
+    </div>`;
 
-      resultsEl.innerHTML = matches.map(c => `
-        <div class="bm-result-item" data-hex="${c.hex}" data-name="${escHtml(c.name)}" data-number="${escHtml(c.number)}">
-          <div class="bm-result-dot" style="background:${c.hex}"></div>
-          <span class="bm-result-name">${escHtml(c.name)}</span>
-          <span class="bm-result-num">${escHtml(c.number)}</span>
-        </div>`).join('');
+  // Position near the swatch button
+  const btn = document.querySelector(`[data-open-swatch="${si}-${swi}"]`);
+  if (btn) {
+    const rect = btn.getBoundingClientRect();
+    const top  = rect.bottom + window.scrollY + 8;
+    const left = Math.min(rect.left + window.scrollX, window.innerWidth - 300);
+    pop.style.top  = top + 'px';
+    pop.style.left = Math.max(8, left) + 'px';
+  }
 
-      resultsEl.querySelectorAll('.bm-result-item').forEach(item => {
-        item.addEventListener('click', () => {
-          const colorInput = body.querySelector(`[data-set="${si}"][data-sw="${swi}"]`);
-          if (colorInput) colorInput.value = item.dataset.hex;
-          const labelInput = body.querySelector(`[data-set-label="${si}-${swi}"]`);
-          if (labelInput) labelInput.value = `${item.dataset.name} ${item.dataset.number}`;
-          input.value = '';
-          resultsEl.innerHTML = '';
-          resultsEl.classList.remove('open');
-        });
-      });
+  pop.classList.add('open');
 
-      resultsEl.classList.add('open');
-    });
+  const colorInput = pop.querySelector('#sep-color');
+  const preview    = pop.querySelector('#sep-preview');
+  const bmSearch   = pop.querySelector('#sep-bm-search');
+  const bmResults  = pop.querySelector('#sep-bm-results');
+
+  colorInput.addEventListener('input', () => {
+    preview.style.background = colorInput.value;
   });
 
-  // Close BM dropdowns on outside click
-  document.addEventListener('click', e => {
-    if (!e.target.closest('.bm-search-wrap')) {
-      document.querySelectorAll('.bm-swatch-results').forEach(el => {
-        el.innerHTML = '';
-        el.classList.remove('open');
-      });
+  bmSearch.addEventListener('input', () => {
+    const q = bmSearch.value.trim().toLowerCase();
+    if (!q || q.length < 2) { bmResults.innerHTML = ''; bmResults.classList.remove('open'); return; }
+
+    const matches = bmColors
+      .filter(c => c.name.toLowerCase().includes(q) || c.number.toLowerCase().includes(q))
+      .slice(0, 12);
+
+    if (!matches.length) {
+      bmResults.innerHTML = '<div class="bm-result-empty">No colors found</div>';
+      bmResults.classList.add('open');
+      return;
     }
+
+    bmResults.innerHTML = matches.map(c => `
+      <div class="bm-result-item" data-hex="${c.hex}" data-name="${escHtml(c.name)}" data-number="${escHtml(c.number)}">
+        <div class="bm-result-dot" style="background:${c.hex}"></div>
+        <span class="bm-result-name">${escHtml(c.name)}</span>
+        <span class="bm-result-num">${escHtml(c.number)}</span>
+      </div>`).join('');
+
+    bmResults.querySelectorAll('.bm-result-item').forEach(item => {
+      item.addEventListener('click', () => {
+        colorInput.value = item.dataset.hex;
+        preview.style.background = item.dataset.hex;
+        pop.querySelector('#sep-label').value = `${item.dataset.name} ${item.dataset.number}`;
+        bmSearch.value = '';
+        bmResults.innerHTML = '';
+        bmResults.classList.remove('open');
+        bmSearch.focus();
+      });
+    });
+
+    bmResults.classList.add('open');
   });
+
+  pop.querySelector('#sep-done').addEventListener('click', async () => {
+    const { si, swi } = swatchPopoverTarget;
+    const sw = roomData.recommendations.swatch_sets[si].swatches[swi];
+    sw.color = colorInput.value;
+    sw.role  = pop.querySelector('#sep-role').value;
+    sw.label = pop.querySelector('#sep-label').value;
+    closeSwatchPopover();
+    await persistRecs();
+    renderRecommendations();
+  });
+
+  pop.querySelector('#sep-remove').addEventListener('click', async () => {
+    const { si, swi } = swatchPopoverTarget;
+    roomData.recommendations.swatch_sets[si].swatches.splice(swi, 1);
+    closeSwatchPopover();
+    await persistRecs();
+    renderRecommendations();
+  });
+
+  pop.querySelector('#sep-close').addEventListener('click', closeSwatchPopover);
+  bmSearch.focus();
 }
 
-function gatherSwatchEdits() {
-  const sets = roomData.recommendations.swatch_sets || [];
-  sets.forEach((set, si) => {
-    const nameInput = document.querySelector(`[data-set-name="${si}"]`);
-    if (nameInput) set.name = nameInput.value;
-    set.swatches.forEach((sw, swi) => {
-      const ci = document.querySelector(`[data-set="${si}"][data-sw="${swi}"]`);
-      if (ci) sw.color = ci.value;
-      const ri = document.querySelector(`[data-set-role="${si}-${swi}"]`);
-      if (ri) sw.role = ri.value;
-      const li = document.querySelector(`[data-set-label="${si}-${swi}"]`);
-      if (li) sw.label = li.value;
-    });
-  });
+function closeSwatchPopover() {
+  const pop = document.getElementById('swatch-editor-popover');
+  if (pop) pop.classList.remove('open');
+  swatchPopoverTarget = null;
 }
+
+// Close popover on outside click
+document.addEventListener('click', e => {
+  if (swatchPopoverTarget && !e.target.closest('#swatch-editor-popover') && !e.target.closest('[data-open-swatch]') && !e.target.closest('[data-add-swatch]')) {
+    closeSwatchPopover();
+  }
+});
 
 // ─── Client Swatch Listeners ───────────────────────────────────────────────
 function setupClientSwatchListeners() {
@@ -778,7 +841,6 @@ function setupClientSwatchListeners() {
 // ─── Save ─────────────────────────────────────────────────────────────────
 async function saveRecommendations() {
   gatherItemEdits();
-  gatherSwatchEdits();
   const body = document.getElementById('rec-body');
   const gnField = body.querySelector('#field-general_notes');
   if (gnField) roomData.recommendations.general_notes = gnField.value;
