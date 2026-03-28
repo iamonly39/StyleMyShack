@@ -7,6 +7,7 @@ let threadOpen = false;
 let draftMessage = '';
 let inlineEditItem = null;      // { cat, idx } | null
 let editingGeneralNotes = false;
+let editingSwatch = null;       // { si, swi } | null
 
 // ─── Constants ────────────────────────────────────────────────────────────
 const REC_CATEGORIES = [
@@ -543,7 +544,8 @@ function renderSwatchSets(sets) {
       <div class="swatches-compact-row">`;
 
     (set.swatches || []).forEach((sw, swi) => {
-      html += `<button class="swatch-circle-btn" data-open-swatch="${si}-${swi}"
+      const active = editingSwatch && editingSwatch.si === si && editingSwatch.swi === swi;
+      html += `<button class="swatch-circle-btn${active ? ' swatch-circle-active' : ''}" data-open-swatch="${si}-${swi}"
                style="background:${sw.color || '#CCCCCC'}"
                title="${escHtml(sw.role || '')}">
         <span class="swatch-circle-role">${escHtml(sw.role || '')}</span>
@@ -552,8 +554,32 @@ function renderSwatchSets(sets) {
     });
 
     html += `<button class="swatch-add-circle-btn" data-add-swatch="${si}" title="Add swatch">+</button>
-      </div>
-    </div>`;
+      </div>`;
+
+    // Inline edit panel for whichever swatch is active in this palette
+    if (editingSwatch && editingSwatch.si === si) {
+      const swi = editingSwatch.swi;
+      const sw  = set.swatches[swi] || {};
+      html += `<div class="swatch-inline-edit">
+        <div class="sie-preview" id="sie-preview" style="background:${sw.color || '#CCCCCC'}"></div>
+        <div class="bm-search-wrap">
+          <input type="text" class="sep-bm-search" id="sie-bm-search"
+                 placeholder="Search Benjamin Moore…" autocomplete="off">
+          <div class="bm-swatch-results" id="sie-bm-results"></div>
+        </div>
+        <div class="sie-row">
+          <input type="color" id="sie-color" value="${sw.color || '#CCCCCC'}" title="Pick any color">
+          <input type="text" id="sie-label" placeholder="Color name (e.g. White Dove OC-17)" value="${escHtml(sw.label || '')}">
+        </div>
+        <input type="text" id="sie-role" placeholder="Role (e.g. Wall, Trim, Accent)" value="${escHtml(sw.role || '')}">
+        <div class="sie-actions">
+          <button class="btn-primary-small" id="sie-done">Done</button>
+          <button class="btn-danger-tiny" id="sie-remove">Remove swatch</button>
+        </div>
+      </div>`;
+    }
+
+    html += '</div>'; // swatch-set
   });
 
   html += '<button class="add-set-btn" id="add-palette-set">+ Add palette</button>';
@@ -631,13 +657,14 @@ function setupSwatchSetListeners() {
   // Remove palette
   body.querySelectorAll('[data-remove-set]').forEach(btn => {
     btn.addEventListener('click', async () => {
+      if (editingSwatch && editingSwatch.si === +btn.dataset.removeSet) editingSwatch = null;
       roomData.recommendations.swatch_sets.splice(+btn.dataset.removeSet, 1);
       await persistRecs();
       renderRecommendations();
     });
   });
 
-  // Add swatch — open popover on the new slot
+  // Add swatch — open inline edit on the new slot
   body.querySelectorAll('[data-add-swatch]').forEach(btn => {
     btn.addEventListener('click', () => {
       const si    = +btn.dataset.addSwatch;
@@ -646,17 +673,23 @@ function setupSwatchSetListeners() {
       roomData.recommendations.swatch_sets[si].swatches.push({
         role: roles[count] || 'New', color: '#CCCCCC', label: ''
       });
+      editingSwatch = { si, swi: roomData.recommendations.swatch_sets[si].swatches.length - 1 };
       renderRecommendations();
-      const newSwi = roomData.recommendations.swatch_sets[si].swatches.length - 1;
-      setTimeout(() => openSwatchPopover(si, newSwi), 0);
+      setTimeout(() => document.getElementById('sie-bm-search')?.focus(), 0);
     });
   });
 
-  // Open swatch editor popover
+  // Open inline swatch editor — toggle on repeated click
   body.querySelectorAll('[data-open-swatch]').forEach(btn => {
     btn.addEventListener('click', () => {
       const [si, swi] = btn.dataset.openSwatch.split('-').map(Number);
-      openSwatchPopover(si, swi);
+      if (editingSwatch && editingSwatch.si === si && editingSwatch.swi === swi) {
+        editingSwatch = null;
+      } else {
+        editingSwatch = { si, swi };
+      }
+      renderRecommendations();
+      if (editingSwatch) setTimeout(() => document.getElementById('sie-bm-search')?.focus(), 0);
     });
   });
 
@@ -674,61 +707,21 @@ function setupSwatchSetListeners() {
       renderRecommendations();
     });
   }
+
+  // Inline swatch edit panel listeners
+  setupSwatchInlineEditListeners();
 }
 
-// ─── Swatch Popover ────────────────────────────────────────────────────────
-let swatchPopoverTarget = null;
+function setupSwatchInlineEditListeners() {
+  const body      = document.getElementById('rec-body');
+  const colorInput = body.querySelector('#sie-color');
+  const preview    = body.querySelector('#sie-preview');
+  const bmSearch   = body.querySelector('#sie-bm-search');
+  const bmResults  = body.querySelector('#sie-bm-results');
+  const doneBtn    = body.querySelector('#sie-done');
+  const removeBtn  = body.querySelector('#sie-remove');
 
-function openSwatchPopover(si, swi) {
-  swatchPopoverTarget = { si, swi };
-  const set = roomData.recommendations.swatch_sets[si];
-  const sw  = set.swatches[swi];
-
-  let pop = document.getElementById('swatch-editor-popover');
-  if (!pop) {
-    pop = document.createElement('div');
-    pop.id = 'swatch-editor-popover';
-    pop.className = 'swatch-editor-popover';
-    document.body.appendChild(pop);
-  }
-
-  pop.innerHTML = `
-    <div class="sep-header">
-      <span class="sep-title">${escHtml(sw.role || 'Swatch')}</span>
-      <button class="sep-close" id="sep-close">✕</button>
-    </div>
-    <div class="sep-preview" id="sep-preview" style="background:${sw.color || '#CCCCCC'}"></div>
-    <div class="bm-search-wrap">
-      <input type="text" class="sep-bm-search" id="sep-bm-search"
-             placeholder="Search Benjamin Moore…" autocomplete="off">
-      <div class="bm-swatch-results" id="sep-bm-results"></div>
-    </div>
-    <div class="sep-row">
-      <input type="color" id="sep-color" value="${sw.color || '#CCCCCC'}" title="Pick any color">
-      <input type="text" id="sep-label" placeholder="Color name (e.g. White Dove OC-17)" value="${escHtml(sw.label || '')}">
-    </div>
-    <input type="text" id="sep-role" placeholder="Role (e.g. Wall, Trim, Accent)" value="${escHtml(sw.role || '')}">
-    <div class="sep-actions">
-      <button class="btn-primary-small" id="sep-done">Done</button>
-      <button class="btn-danger-tiny" id="sep-remove">Remove swatch</button>
-    </div>`;
-
-  // Position near the swatch button
-  const btn = document.querySelector(`[data-open-swatch="${si}-${swi}"]`);
-  if (btn) {
-    const rect = btn.getBoundingClientRect();
-    const top  = rect.bottom + window.scrollY + 8;
-    const left = Math.min(rect.left + window.scrollX, window.innerWidth - 300);
-    pop.style.top  = top + 'px';
-    pop.style.left = Math.max(8, left) + 'px';
-  }
-
-  pop.classList.add('open');
-
-  const colorInput = pop.querySelector('#sep-color');
-  const preview    = pop.querySelector('#sep-preview');
-  const bmSearch   = pop.querySelector('#sep-bm-search');
-  const bmResults  = pop.querySelector('#sep-bm-results');
+  if (!colorInput) return; // no inline edit panel currently rendered
 
   colorInput.addEventListener('input', () => {
     preview.style.background = colorInput.value;
@@ -759,7 +752,7 @@ function openSwatchPopover(si, swi) {
       item.addEventListener('click', () => {
         colorInput.value = item.dataset.hex;
         preview.style.background = item.dataset.hex;
-        pop.querySelector('#sep-label').value = `${item.dataset.name} ${item.dataset.number}`;
+        body.querySelector('#sie-label').value = `${item.dataset.name} ${item.dataset.number}`;
         bmSearch.value = '';
         bmResults.innerHTML = '';
         bmResults.classList.remove('open');
@@ -770,41 +763,25 @@ function openSwatchPopover(si, swi) {
     bmResults.classList.add('open');
   });
 
-  pop.querySelector('#sep-done').addEventListener('click', async () => {
-    const { si, swi } = swatchPopoverTarget;
+  doneBtn.addEventListener('click', async () => {
+    const { si, swi } = editingSwatch;
     const sw = roomData.recommendations.swatch_sets[si].swatches[swi];
     sw.color = colorInput.value;
-    sw.role  = pop.querySelector('#sep-role').value;
-    sw.label = pop.querySelector('#sep-label').value;
-    closeSwatchPopover();
+    sw.role  = body.querySelector('#sie-role').value;
+    sw.label = body.querySelector('#sie-label').value;
+    editingSwatch = null;
     await persistRecs();
     renderRecommendations();
   });
 
-  pop.querySelector('#sep-remove').addEventListener('click', async () => {
-    const { si, swi } = swatchPopoverTarget;
+  removeBtn.addEventListener('click', async () => {
+    const { si, swi } = editingSwatch;
     roomData.recommendations.swatch_sets[si].swatches.splice(swi, 1);
-    closeSwatchPopover();
+    editingSwatch = null;
     await persistRecs();
     renderRecommendations();
   });
-
-  pop.querySelector('#sep-close').addEventListener('click', closeSwatchPopover);
-  bmSearch.focus();
 }
-
-function closeSwatchPopover() {
-  const pop = document.getElementById('swatch-editor-popover');
-  if (pop) pop.classList.remove('open');
-  swatchPopoverTarget = null;
-}
-
-// Close popover on outside click
-document.addEventListener('click', e => {
-  if (swatchPopoverTarget && !e.target.closest('#swatch-editor-popover') && !e.target.closest('[data-open-swatch]') && !e.target.closest('[data-add-swatch]')) {
-    closeSwatchPopover();
-  }
-});
 
 // ─── Client Swatch Listeners ───────────────────────────────────────────────
 function setupClientSwatchListeners() {
