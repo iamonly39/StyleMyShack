@@ -21,11 +21,15 @@
     </div>
   </section>
 
-  <!-- Site photo carousel -->
   <section class="home-carousel-section">
     <div class="container">
       <div class="home-carousel-wrap" id="home-carousel-wrap">
-        <!-- Slides injected by main.js -->
+        <div class="home-carousel-slide active">
+          <div class="home-carousel-empty">
+            <div class="home-carousel-empty-icon">📷</div>
+            <p>Loading…</p>
+          </div>
+        </div>
       </div>
       <div class="home-carousel-bar">
         <div class="home-carousel-dots" id="home-carousel-dots"></div>
@@ -44,6 +48,7 @@
         <div class="room-grid" id="room-grid">
           <!-- Room cards injected by main.js -->
         </div>
+        <p class="rooms-empty" id="rooms-empty" style="display:none;">No rooms found. Run schema.sql in Supabase to seed the data.</p>
       </div>
     </section>
   </main>

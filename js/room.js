@@ -5,14 +5,15 @@ let bmColors = [];
 let editMode = false;
 let threadOpen = false;
 let draftMessage = '';
+let inlineEditItem = null;      // { cat, idx } | null
+let editingGeneralNotes = false;
 
 // ─── Constants ────────────────────────────────────────────────────────────
-const REC_FIELDS = [
-  { key: 'paint_notes',   label: 'Paint',        ph: 'e.g. Eggshell on walls, semi-gloss on trim…' },
-  { key: 'flooring',      label: 'Flooring',      ph: 'e.g. Wide-plank white oak hardwood…' },
-  { key: 'lighting',      label: 'Lighting',      ph: 'e.g. Warm Edison bulbs, antler chandelier…' },
-  { key: 'furniture',     label: 'Furniture',     ph: 'e.g. Sectional sofa facing the fireplace…' },
-  { key: 'general_notes', label: 'General Notes', ph: 'Any other recommendations…' }
+const REC_CATEGORIES = [
+  { key: 'paint_items',     label: 'Paint',     ph: 'e.g. Benjamin Moore White Dove OC-17' },
+  { key: 'flooring_items',  label: 'Flooring',  ph: 'e.g. Wide-plank white oak hardwood' },
+  { key: 'lighting_items',  label: 'Lighting',  ph: 'e.g. Antler chandelier, 2700K bulbs' },
+  { key: 'furniture_items', label: 'Furniture', ph: 'e.g. Oatmeal linen sectional' }
 ];
 const REACTION_TYPES = [
   { key: 'love',    emoji: '♥',  label: 'Love it',       cls: 'selected-love' },
@@ -70,14 +71,14 @@ async function loadRecs(roomId) {
   };
 
   return {
-    paint_notes:     data.paint_notes || '',
-    flooring:        data.flooring || '',
-    lighting:        data.lighting || '',
-    furniture:       data.furniture || '',
-    general_notes:   data.general_notes || '',
-    swatch_sets:     data.swatch_sets || [],
+    paint_items:     data.paint_items     || [],
+    flooring_items:  data.flooring_items  || [],
+    lighting_items:  data.lighting_items  || [],
+    furniture_items: data.furniture_items || [],
+    general_notes:   data.general_notes   || '',
+    swatch_sets:     data.swatch_sets     || [],
     client_swatches: data.client_swatches || [],
-    reactions:       data.reactions || {}
+    reactions:       data.reactions       || {}
   };
 }
 
@@ -85,14 +86,14 @@ async function persistRecs() {
   const rec = roomData.recommendations;
   await sb.from('recommendations').upsert({
     room_id:         roomData.id,
-    paint_notes:     rec.paint_notes || '',
-    flooring:        rec.flooring || '',
-    lighting:        rec.lighting || '',
-    furniture:       rec.furniture || '',
-    general_notes:   rec.general_notes || '',
-    swatch_sets:     rec.swatch_sets || [],
+    paint_items:     rec.paint_items     || [],
+    flooring_items:  rec.flooring_items  || [],
+    lighting_items:  rec.lighting_items  || [],
+    furniture_items: rec.furniture_items || [],
+    general_notes:   rec.general_notes   || '',
+    swatch_sets:     rec.swatch_sets     || [],
     client_swatches: rec.client_swatches || [],
-    reactions:       rec.reactions || {},
+    reactions:       rec.reactions       || {},
     updated_at:      new Date().toISOString()
   }, { onConflict: 'room_id' });
 }
@@ -102,15 +103,22 @@ async function init() {
   const params = new URLSearchParams(window.location.search);
   const roomId = params.get('id');
 
-  const [{ data: rooms }, { data: messages }, colorsRes] = await Promise.all([
+  const [roomsRes, messagesRes] = await Promise.all([
     sb.from('rooms').select('*').order('sort_order'),
-    sb.from('messages').select('*').eq('room_id', roomId).order('created_at'),
-    fetch('data/bm-colors.json')
+    sb.from('messages').select('*').eq('room_id', roomId).order('created_at')
   ]);
 
-  bmColors = await colorsRes.json();
+  const rooms    = roomsRes.data    || [];
+  const messages = messagesRes.data || [];
 
-  allRooms = rooms || [];
+  try {
+    const colorsRes = await fetch('data/bm-colors.json');
+    bmColors = await colorsRes.json();
+  } catch (e) {
+    bmColors = []; // BM search unavailable (e.g. file:// protocol)
+  }
+
+  allRooms = rooms;
   roomData = allRooms.find(r => r.id === roomId);
 
   if (!roomData) {
@@ -119,7 +127,7 @@ async function init() {
   }
 
   roomData.recommendations = await loadRecs(roomId);
-  roomData.messages = messages || [];
+  roomData.messages = messages;
 
   document.title = roomData.name + ' — StyleMyShack';
   document.getElementById('room-title').textContent       = roomData.name;
@@ -129,6 +137,7 @@ async function init() {
     renderGallery('actual'),
     renderGallery('model3d'),
     renderGallery('floorPlan'),
+    renderGallery('inspiration'),
     renderRoomNav()
   ]);
 
@@ -166,9 +175,10 @@ async function renderRoomNav() {
 
 // ─── Gallery ──────────────────────────────────────────────────────────────
 const GALLERY_ICONS = {
-  actual:    { icon: '📷', empty: 'No actual photos yet.' },
-  model3d:   { icon: '🏗️',  empty: 'No 3D model photos yet.' },
-  floorPlan: { icon: '📐', empty: 'No floor plan uploaded yet.' }
+  actual:      { icon: '📷', empty: 'No actual photos yet.' },
+  model3d:     { icon: '🏗️',  empty: 'No 3D model photos yet.' },
+  floorPlan:   { icon: '📐', empty: 'No floor plan uploaded yet.' },
+  inspiration: { icon: '✨', empty: 'No inspiration photos yet. Add reference images for the vibe you\'re going for.' }
 };
 
 async function renderGallery(tab) {
@@ -178,10 +188,14 @@ async function renderGallery(tab) {
 
   if (photos.length === 0) {
     container.innerHTML = `
-      <div class="photo-placeholder">
+      <div class="photo-placeholder photo-placeholder-upload">
         <span class="icon">${meta.icon}</span>
-        <p>${meta.empty}${editMode ? ' Use the button below to upload.' : ''}</p>
+        <p>${meta.empty}</p>
+        <span class="placeholder-upload-hint">Click to add photos</span>
       </div>`;
+    container.querySelector('.photo-placeholder-upload').addEventListener('click', () => {
+      document.getElementById('upload-' + tab).click();
+    });
     return;
   }
 
@@ -215,6 +229,10 @@ async function renderGallery(tab) {
 
     container.querySelectorAll('.photo-thumb').forEach(thumb => {
       thumb.addEventListener('click', () => { activeIdx = +thumb.dataset.idx; build(); });
+    });
+
+    container.querySelector('.photo-main').addEventListener('click', () => {
+      openLightbox(urls[activeIdx]);
     });
 
     container.querySelector('.photo-pin-btn').addEventListener('click', async e => {
@@ -285,7 +303,7 @@ function setupUploadListeners() {
 }
 
 function setUploadVisibility(visible) {
-  ['actual', 'model3d', 'floorPlan'].forEach(tab => {
+  ['actual', 'model3d', 'floorPlan', 'inspiration'].forEach(tab => {
     const wrap = document.getElementById('upload-wrap-' + tab);
     if (wrap) wrap.style.display = visible ? '' : 'none';
   });
@@ -309,28 +327,81 @@ function renderRecommendations() {
   if (editMode) {
     body.innerHTML = buildEditForm(roomData.recommendations);
     body.querySelector('#save-recs-btn').addEventListener('click', saveRecommendations);
+    setupItemListeners();
     setupSwatchSetListeners();
     setupClientSwatchListeners();
   } else {
     body.innerHTML = buildViewPanel(roomData.recommendations);
     setupReactionListeners();
+    setupInlineEditListeners();
     setupClientSwatchListeners();
   }
 }
 
+function setupItemListeners() {
+  const body = document.getElementById('rec-body');
+
+  body.querySelectorAll('[data-add-category]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      gatherItemEdits();
+      gatherSwatchEdits();
+      const cat = btn.dataset.addCategory;
+      if (!roomData.recommendations[cat]) roomData.recommendations[cat] = [];
+      roomData.recommendations[cat].push({ id: makeId(), name: '', note: '', link: '', photo_url: '' });
+      renderRecommendations();
+    });
+  });
+
+  body.querySelectorAll('[data-remove-cat]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      gatherItemEdits();
+      gatherSwatchEdits();
+      const cat = btn.dataset.removeCat;
+      const idx = +btn.dataset.removeIdx;
+      roomData.recommendations[cat].splice(idx, 1);
+      renderRecommendations();
+    });
+  });
+}
+
 function buildViewPanel(rec) {
   let html = '';
-  REC_FIELDS.forEach(f => {
-    const val = rec[f.key] || '';
-    html += `<div class="rec-section"><div class="rec-section-label">${f.label}</div>`;
-    if (val) {
-      html += `<div class="rec-text">${escHtml(val)}</div>`;
-      html += renderReactionStrip(f.key, rec.reactions);
+
+  REC_CATEGORIES.forEach(cat => {
+    const items = rec[cat.key] || [];
+    html += `<div class="rec-section"><div class="rec-section-label">${cat.label}</div>`;
+    if (items.length === 0 && !inlineEditItem) {
+      html += `<span class="rec-empty">No ${cat.label.toLowerCase()} items yet.</span>`;
     } else {
-      html += `<span class="rec-empty">No ${f.label.toLowerCase()} notes yet.</span>`;
+      html += '<div class="items-list">';
+      items.forEach((item, idx) => {
+        if (inlineEditItem && inlineEditItem.cat === cat.key && inlineEditItem.idx === idx) {
+          html += renderItemInlineEdit(item, cat.key, idx, cat.ph);
+        } else {
+          html += renderItemCard(item, rec.reactions, cat.key, idx);
+        }
+      });
+      html += '</div>';
     }
+    html += `<button class="add-item-btn" data-add-category="${cat.key}">+ Add ${cat.label}</button>`;
     html += '</div>';
   });
+
+  const gn = rec.general_notes || '';
+  html += `<div class="rec-section"><div class="rec-section-label">General Notes</div>`;
+  if (editingGeneralNotes) {
+    html += `<textarea class="edit-field" id="field-general_notes" rows="3"
+      placeholder="Any other notes…">${escHtml(gn)}</textarea>
+      <div class="inline-edit-actions">
+        <button class="inline-save-btn" id="save-gn-btn">✓ Save</button>
+        <button class="inline-cancel-btn" id="cancel-gn-btn">Cancel</button>
+      </div>`;
+  } else {
+    html += gn
+      ? `<div class="rec-text rec-text-editable" data-edit-gn>${escHtml(gn)}</div>`
+      : `<span class="rec-empty rec-text-editable" data-edit-gn>No general notes yet — click to add.</span>`;
+  }
+  html += '</div>';
 
   html += `<div class="rec-section"><div class="rec-section-label">Color Palettes</div>
     ${renderSwatchSets(rec.swatch_sets || [], false)}
@@ -342,13 +413,23 @@ function buildViewPanel(rec) {
 
 function buildEditForm(rec) {
   let html = '';
-  REC_FIELDS.forEach(f => {
-    const val = rec[f.key] || '';
-    html += `<div class="rec-section"><div class="rec-section-label">${f.label}</div>
-      <textarea class="edit-field" id="field-${f.key}" rows="3"
-        placeholder="${escHtml(f.ph)}">${escHtml(val)}</textarea>
+
+  REC_CATEGORIES.forEach(cat => {
+    const items = rec[cat.key] || [];
+    html += `<div class="rec-section"><div class="rec-section-label">${cat.label}</div>
+      <div class="items-edit-list">`;
+    items.forEach((item, idx) => {
+      html += renderItemEditRow(item, cat.key, idx, cat.ph);
+    });
+    html += `</div>
+      <button class="add-item-btn" data-add-category="${cat.key}">+ Add ${cat.label} item</button>
     </div>`;
   });
+
+  html += `<div class="rec-section"><div class="rec-section-label">General Notes</div>
+    <textarea class="edit-field" id="field-general_notes" rows="3"
+      placeholder="Any other notes…">${escHtml(rec.general_notes || '')}</textarea>
+  </div>`;
 
   html += `<div class="rec-section"><div class="rec-section-label">Color Palettes</div>
     ${renderSwatchSets(rec.swatch_sets || [], true)}
@@ -357,6 +438,78 @@ function buildEditForm(rec) {
   html += renderClientSwatches(rec.client_swatches || []);
   html += `<button class="save-btn" id="save-recs-btn">Save</button>`;
   return html;
+}
+
+function renderItemCard(item, reactions, cat, idx) {
+  const hasPhoto  = item.photo_url && item.photo_url.trim();
+  const hasLink   = item.link && item.link.trim();
+  const hasNote   = item.note && item.note.trim();
+  return `<div class="item-card item-card-clickable" data-edit-cat="${cat}" data-edit-idx="${idx}">
+    <div class="item-photo${hasPhoto ? '' : ' item-photo-empty'} ${hasPhoto ? 'item-photo-previewable' : ''}">
+      ${hasPhoto ? `<img src="${escHtml(item.photo_url)}" alt="${escHtml(item.name)}">` : '📷'}
+    </div>
+    <div class="item-content">
+      <div class="item-name">${escHtml(item.name || '—')}</div>
+      ${hasNote ? `<div class="item-note">${escHtml(item.note)}</div>` : ''}
+      ${hasLink ? `<a class="item-link-btn" href="${escHtml(item.link)}" target="_blank" rel="noopener">View →</a>` : ''}
+      ${renderReactionStrip(item.id, reactions)}
+    </div>
+  </div>`;
+}
+
+function renderItemInlineEdit(item, cat, idx, ph) {
+  return `<div class="item-card item-card-editing" data-inline-form>
+    <div class="item-edit-fields">
+      <input class="item-input item-name-input" data-field="name"
+             value="${escHtml(item.name || '')}" placeholder="${escHtml(ph || 'Name')}">
+      <input class="item-input item-note-input" data-field="note"
+             value="${escHtml(item.note || '')}" placeholder="Note (optional)">
+      <input class="item-input item-link-input" data-field="link"
+             value="${escHtml(item.link || '')}" placeholder="Link URL (optional)">
+      <input class="item-input item-photo-input" data-field="photo_url"
+             value="${escHtml(item.photo_url || '')}" placeholder="Photo URL (optional)">
+    </div>
+    <div class="inline-edit-actions">
+      <button class="inline-save-btn" data-save-cat="${cat}" data-save-idx="${idx}">✓ Save</button>
+      <button class="inline-cancel-btn" data-cancel-cat="${cat}" data-cancel-idx="${idx}">Cancel</button>
+      <button class="inline-delete-btn" data-delete-cat="${cat}" data-delete-idx="${idx}">Delete</button>
+    </div>
+  </div>`;
+}
+
+function renderItemEditRow(item, categoryKey, idx, placeholder) {
+  return `<div class="item-edit-row">
+    <div class="item-edit-fields">
+      <input class="item-input item-name-input"
+        data-cat="${categoryKey}" data-idx="${idx}" data-field="name"
+        value="${escHtml(item.name || '')}" placeholder="${escHtml(placeholder)}">
+      <input class="item-input item-note-input"
+        data-cat="${categoryKey}" data-idx="${idx}" data-field="note"
+        value="${escHtml(item.note || '')}" placeholder="Note (optional)">
+      <input class="item-input item-link-input"
+        data-cat="${categoryKey}" data-idx="${idx}" data-field="link"
+        value="${escHtml(item.link || '')}" placeholder="Link URL (optional)">
+      <input class="item-input item-photo-input"
+        data-cat="${categoryKey}" data-idx="${idx}" data-field="photo_url"
+        value="${escHtml(item.photo_url || '')}" placeholder="Photo URL (optional)">
+    </div>
+    <button class="item-remove-btn" data-remove-cat="${categoryKey}" data-remove-idx="${idx}">✕</button>
+  </div>`;
+}
+
+function makeId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+function gatherItemEdits() {
+  REC_CATEGORIES.forEach(cat => {
+    (roomData.recommendations[cat.key] || []).forEach((item, idx) => {
+      ['name', 'note', 'link', 'photo_url'].forEach(field => {
+        const el = document.querySelector(`.item-input[data-cat="${cat.key}"][data-idx="${idx}"][data-field="${field}"]`);
+        if (el) item[field] = el.value;
+      });
+    });
+  });
 }
 
 function renderReactionStrip(fieldKey, reactions) {
@@ -624,12 +777,11 @@ function setupClientSwatchListeners() {
 
 // ─── Save ─────────────────────────────────────────────────────────────────
 async function saveRecommendations() {
+  gatherItemEdits();
   gatherSwatchEdits();
   const body = document.getElementById('rec-body');
-  REC_FIELDS.forEach(f => {
-    const ta = body.querySelector(`#field-${f.key}`);
-    if (ta) roomData.recommendations[f.key] = ta.value;
-  });
+  const gnField = body.querySelector('#field-general_notes');
+  if (gnField) roomData.recommendations.general_notes = gnField.value;
   await persistRecs();
   showBanner('Saved!');
   exitEditMode();
@@ -642,7 +794,115 @@ function setupEditToggle() {
   });
 }
 
+function setupInlineEditListeners() {
+  const body = document.getElementById('rec-body');
+
+  body.querySelectorAll('.item-card-clickable').forEach(card => {
+    card.addEventListener('click', e => {
+      if (e.target.closest('.reaction-strip, .item-link-btn')) return;
+      if (e.target.closest('.item-photo-previewable')) {
+        const img = card.querySelector('.item-photo img');
+        if (img) openLightbox(img.src);
+        return;
+      }
+      inlineEditItem = { cat: card.dataset.editCat, idx: +card.dataset.editIdx };
+      renderRecommendations();
+    });
+  });
+
+  body.querySelectorAll('[data-add-category]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cat = btn.dataset.addCategory;
+      if (!roomData.recommendations[cat]) roomData.recommendations[cat] = [];
+      const newIdx = roomData.recommendations[cat].length;
+      roomData.recommendations[cat].push({ id: makeId(), name: '', note: '', link: '', photo_url: '' });
+      inlineEditItem = { cat, idx: newIdx };
+      renderRecommendations();
+      setTimeout(() => {
+        const nameInput = document.querySelector('.item-card-editing .item-name-input');
+        if (nameInput) nameInput.focus();
+      }, 0);
+    });
+  });
+
+  body.querySelectorAll('[data-save-cat]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const cat  = btn.dataset.saveCat;
+      const idx  = +btn.dataset.saveIdx;
+      const form = btn.closest('[data-inline-form]');
+      const item = roomData.recommendations[cat][idx];
+      ['name', 'note', 'link', 'photo_url'].forEach(field => {
+        const el = form.querySelector(`[data-field="${field}"]`);
+        if (el) item[field] = el.value;
+      });
+      inlineEditItem = null;
+      await persistRecs();
+      showBanner('Saved!');
+      renderRecommendations();
+    });
+  });
+
+  body.querySelectorAll('[data-cancel-cat]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cat  = btn.dataset.cancelCat;
+      const idx  = +btn.dataset.cancelIdx;
+      const item = roomData.recommendations[cat][idx];
+      if (!item.name && !item.note && !item.link && !item.photo_url) {
+        roomData.recommendations[cat].splice(idx, 1);
+      }
+      inlineEditItem = null;
+      renderRecommendations();
+    });
+  });
+
+  body.querySelectorAll('[data-delete-cat]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const cat = btn.dataset.deleteCat;
+      const idx = +btn.dataset.deleteIdx;
+      roomData.recommendations[cat].splice(idx, 1);
+      inlineEditItem = null;
+      await persistRecs();
+      showBanner('Deleted.');
+      renderRecommendations();
+    });
+  });
+
+  const gnEl = body.querySelector('[data-edit-gn]');
+  if (gnEl) {
+    gnEl.addEventListener('click', () => {
+      editingGeneralNotes = true;
+      renderRecommendations();
+      setTimeout(() => {
+        const ta = document.getElementById('field-general_notes');
+        if (ta) { ta.focus(); ta.selectionStart = ta.value.length; }
+      }, 0);
+    });
+  }
+
+  const saveGnBtn = body.querySelector('#save-gn-btn');
+  if (saveGnBtn) {
+    saveGnBtn.addEventListener('click', async () => {
+      const ta = body.querySelector('#field-general_notes');
+      if (ta) roomData.recommendations.general_notes = ta.value;
+      editingGeneralNotes = false;
+      await persistRecs();
+      showBanner('Saved!');
+      renderRecommendations();
+    });
+  }
+
+  const cancelGnBtn = body.querySelector('#cancel-gn-btn');
+  if (cancelGnBtn) {
+    cancelGnBtn.addEventListener('click', () => {
+      editingGeneralNotes = false;
+      renderRecommendations();
+    });
+  }
+}
+
 function enterEditMode() {
+  inlineEditItem = null;
+  editingGeneralNotes = false;
   editMode = true;
   document.getElementById('edit-toggle').textContent = 'Done';
   document.getElementById('edit-toggle').classList.add('active');
@@ -650,6 +910,7 @@ function enterEditMode() {
   renderGallery('actual');
   renderGallery('model3d');
   renderGallery('floorPlan');
+  renderGallery('inspiration');
   renderRecommendations();
 }
 
@@ -661,6 +922,7 @@ function exitEditMode() {
   renderGallery('actual');
   renderGallery('model3d');
   renderGallery('floorPlan');
+  renderGallery('inspiration');
   renderRecommendations();
 }
 
@@ -736,6 +998,34 @@ function formatDate(isoString) {
   if (!isoString) return 'Just now';
   const d = new Date(isoString);
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+// ─── Lightbox ─────────────────────────────────────────────────────────────
+function openLightbox(url) {
+  let lb = document.getElementById('photo-lightbox');
+  if (!lb) {
+    lb = document.createElement('div');
+    lb.id = 'photo-lightbox';
+    lb.innerHTML = `
+      <div class="lightbox-backdrop"></div>
+      <div class="lightbox-frame">
+        <button class="lightbox-close" title="Close">✕</button>
+        <img class="lightbox-img" src="" alt="Full-size photo" />
+      </div>`;
+    document.body.appendChild(lb);
+    lb.querySelector('.lightbox-backdrop').addEventListener('click', closeLightbox);
+    lb.querySelector('.lightbox-close').addEventListener('click', closeLightbox);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+  }
+  lb.querySelector('.lightbox-img').src = url;
+  lb.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  const lb = document.getElementById('photo-lightbox');
+  if (lb) lb.classList.remove('open');
+  document.body.style.overflow = '';
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────

@@ -42,6 +42,7 @@
               <button class="photo-tab active" data-tab="actual">Actual Photos</button>
               <button class="photo-tab" data-tab="model3d">3D Model</button>
               <button class="photo-tab" data-tab="floorPlan">Floor Plan</button>
+              <button class="photo-tab" data-tab="inspiration">Inspiration</button>
             </div>
 
             <div class="photo-content active" id="tab-actual">
@@ -73,6 +74,17 @@
                   + Add Floor Plan
                   <input type="file" id="upload-floorPlan" accept="image/*" multiple
                          data-tab="floorPlan" class="photo-file-input" />
+                </label>
+              </div>
+            </div>
+
+            <div class="photo-content" id="tab-inspiration">
+              <div id="gallery-inspiration"></div>
+              <div class="photo-upload-wrap" id="upload-wrap-inspiration" style="display:none">
+                <label class="photo-upload-btn" for="upload-inspiration">
+                  + Add Inspiration Photos
+                  <input type="file" id="upload-inspiration" accept="image/*" multiple
+                         data-tab="inspiration" class="photo-file-input" />
                 </label>
               </div>
             </div>
