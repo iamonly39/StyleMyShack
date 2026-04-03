@@ -67,6 +67,7 @@ ALTER TABLE photos ADD CONSTRAINT photos_tab_check
   CHECK (tab IN ('actual', 'model3d', 'floorPlan', 'inspiration'));
 
 ALTER TABLE recommendations
+  ADD COLUMN IF NOT EXISTS owner_notes     TEXT DEFAULT '',
   ADD COLUMN IF NOT EXISTS swatch_sets     JSONB DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS client_swatches JSONB DEFAULT '[]'::jsonb,
   ADD COLUMN IF NOT EXISTS reactions       JSONB DEFAULT '{}'::jsonb,

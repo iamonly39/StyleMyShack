@@ -77,6 +77,7 @@ async function loadRecs(roomId) {
     lighting_items:  data.lighting_items  || [],
     furniture_items: data.furniture_items || [],
     general_notes:   data.general_notes   || '',
+    owner_notes:     data.owner_notes     || '',
     swatch_sets:     data.swatch_sets     || [],
     client_swatches: data.client_swatches || [],
     reactions:       data.reactions       || {}
@@ -92,6 +93,7 @@ async function persistRecs() {
     lighting_items:  rec.lighting_items  || [],
     furniture_items: rec.furniture_items || [],
     general_notes:   rec.general_notes   || '',
+    owner_notes:     rec.owner_notes     || '',
     swatch_sets:     rec.swatch_sets     || [],
     client_swatches: rec.client_swatches || [],
     reactions:       rec.reactions       || {},
@@ -146,6 +148,7 @@ async function init() {
     renderRoomNav()
   ]);
 
+  setupOwnerBrief();
   renderRecommendations();
   setupTabs();
   setupEditToggle();
@@ -176,6 +179,56 @@ async function renderRoomNav() {
       <div class="room-nav-label">${escHtml(room.name)}</div>
     </a>
   `).join('');
+}
+
+// ─── Owner's Brief ─────────────────────────────────────────────────────────
+function setupOwnerBrief() {
+  const el = document.getElementById('owner-notes-text');
+  if (!el) return;
+
+  const placeholder = el.dataset.placeholder || 'Click to add notes…';
+  let savedValue = roomData.recommendations.owner_notes || '';
+
+  function render() {
+    if (savedValue) {
+      el.textContent = savedValue;
+      el.classList.remove('is-placeholder');
+    } else {
+      el.textContent = placeholder;
+      el.classList.add('is-placeholder');
+    }
+  }
+  render();
+
+  el.addEventListener('click', () => {
+    if (el.contentEditable === 'true') return;
+    el.classList.remove('is-placeholder');
+    el.contentEditable = 'true';
+    el.classList.add('owner-brief-editing');
+    el.textContent = savedValue;
+    el.focus();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  });
+
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { el.contentEditable = 'false'; el.classList.remove('owner-brief-editing'); render(); }
+  });
+
+  el.addEventListener('blur', async () => {
+    el.contentEditable = 'false';
+    el.classList.remove('owner-brief-editing');
+    const newValue = el.textContent.trim();
+    if (newValue !== savedValue) {
+      savedValue = newValue;
+      roomData.recommendations.owner_notes = newValue;
+      await persistRecs();
+      showBanner('Saved!');
+    }
+    render();
+  });
 }
 
 // ─── Gallery ──────────────────────────────────────────────────────────────
