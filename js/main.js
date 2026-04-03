@@ -80,6 +80,13 @@ async function init() {
     }
   });
 
+  // Owner's Brief (home-level)
+  const ownerNotesEl = document.getElementById('owner-notes-text');
+  if (ownerNotesEl) {
+    const ownerNotesVal = settingsRes.data?.find(s => s.key === 'owner_notes')?.value || '';
+    renderOwnerBrief(ownerNotesEl, ownerNotesVal);
+  }
+
   // Room cards
   const rooms = roomsRes.data || [];
   const grid  = document.getElementById('room-grid');
@@ -124,6 +131,55 @@ async function init() {
   }));
   initHomeCarousel(photos);
   setupSitePhotoUpload();
+}
+
+// ─── Owner's Brief ─────────────────────────────────────────────────────────
+function renderOwnerBrief(el, value) {
+  const placeholder = el.dataset.placeholder || 'Click to add notes…';
+  if (value) {
+    el.textContent = value;
+    el.classList.remove('is-placeholder');
+  } else {
+    el.textContent = placeholder;
+    el.classList.add('is-placeholder');
+  }
+
+  let savedValue = value;
+
+  el.addEventListener('click', function startEdit() {
+    if (el.contentEditable === 'true') return;
+    el.classList.remove('is-placeholder');
+    el.contentEditable = 'true';
+    el.classList.add('owner-brief-editing');
+    el.textContent = savedValue;
+    el.focus();
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+  });
+
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { el.textContent = savedValue || placeholder; el.blur(); }
+  });
+
+  el.addEventListener('blur', async () => {
+    el.contentEditable = 'false';
+    el.classList.remove('owner-brief-editing');
+    const newValue = el.textContent.trim();
+    if (newValue !== savedValue) {
+      savedValue = newValue;
+      await sb.from('settings').upsert({ key: 'owner_notes', value: newValue }, { onConflict: 'key' });
+      showBanner('Saved!');
+    }
+    if (!savedValue) {
+      el.textContent = placeholder;
+      el.classList.add('is-placeholder');
+    } else {
+      el.textContent = savedValue;
+      el.classList.remove('is-placeholder');
+    }
+  });
 }
 
 // ─── Home Carousel ─────────────────────────────────────────────────────────

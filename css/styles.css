@@ -71,6 +71,8 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   color: var(--sage-light);
 }
 
+.site-header a.logo:hover { opacity: 0.85; }
+
 .header-back {
   margin-right: auto;
   display: flex;
@@ -1556,6 +1558,58 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 }
 
 .btn-danger-tiny:hover { background: #fdf0ed; }
+
+/* ─── Owner's Brief ──────────────────────────────────────────────────────── */
+.owner-brief-section {
+  background: var(--cream);
+  border-bottom: 1px solid var(--border);
+  padding: 1.25rem 0;
+}
+
+.owner-brief-block {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.owner-brief-label {
+  font-family: system-ui, sans-serif;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bark);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.owner-brief-text {
+  flex: 1;
+  font-size: 0.95rem;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 4px 8px;
+  transition: background var(--transition);
+  white-space: pre-wrap;
+  min-height: 1.5em;
+  outline: none;
+}
+
+.owner-brief-text:hover {
+  background: rgba(107, 79, 58, 0.06);
+}
+
+.owner-brief-text.is-placeholder {
+  color: var(--stone);
+  font-style: italic;
+}
+
+.owner-brief-text.owner-brief-editing {
+  background: #fff;
+  outline: 2px solid var(--bark-light);
+  cursor: text;
+}
 
 /* ─── Thread / Messages ──────────────────────────────────────────────────── */
 .thread-section { margin-top: 2rem; }
