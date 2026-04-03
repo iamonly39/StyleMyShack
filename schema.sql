@@ -100,6 +100,7 @@ ALTER TABLE messages        ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies so this script is safe to re-run
 DROP POLICY IF EXISTS "public read settings"      ON settings;
+DROP POLICY IF EXISTS "anon all settings"         ON settings;
 DROP POLICY IF EXISTS "public read rooms"         ON rooms;
 DROP POLICY IF EXISTS "anon all recommendations"  ON recommendations;
 DROP POLICY IF EXISTS "anon all photos"           ON photos;
@@ -109,8 +110,8 @@ DROP POLICY IF EXISTS "room-photos public read"   ON storage.objects;
 DROP POLICY IF EXISTS "room-photos anon upload"   ON storage.objects;
 DROP POLICY IF EXISTS "room-photos anon delete"   ON storage.objects;
 
--- Public read-only for rooms/settings
-CREATE POLICY "public read settings" ON settings        FOR SELECT USING (true);
+-- Public read-only for rooms; full access for settings (single-user tool, cabin name editable)
+CREATE POLICY "anon all settings"    ON settings        FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "public read rooms"    ON rooms           FOR SELECT USING (true);
 
 -- Full access for recommendations, photos, site_photos, messages (single-user designer tool)

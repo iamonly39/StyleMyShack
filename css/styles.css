@@ -145,6 +145,28 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 
 .home-carousel-slide.active { opacity: 1; }
 
+.carousel-delete-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+  line-height: 28px;
+  text-align: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+  z-index: 10;
+  padding: 0;
+}
+.home-carousel-slide:hover .carousel-delete-btn { opacity: 1; }
+.carousel-clickable { cursor: zoom-in; }
+
 .home-carousel-slide img {
   width: 100%;
   height: 100%;
