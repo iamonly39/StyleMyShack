@@ -155,9 +155,29 @@ function renderHomeCarousel() {
 
   wrap.innerHTML = sitePhotos.map((p, i) =>
     `<div class="home-carousel-slide${i === homeSlide ? ' active' : ''}">
-       <img src="${p.publicUrl}" alt="Site photo ${i + 1}">
+       <img src="${p.publicUrl}" alt="Site photo ${i + 1}" class="carousel-clickable">
+       <button class="carousel-delete-btn" data-id="${p.id}" data-path="${p.storage_path}" title="Delete photo">✕</button>
      </div>`
   ).join('');
+
+  wrap.querySelectorAll('.carousel-clickable').forEach((img, i) => {
+    img.addEventListener('click', () => openLightbox(sitePhotos[i].publicUrl));
+  });
+
+  wrap.querySelectorAll('.carousel-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const id   = btn.dataset.id;
+      const path = btn.dataset.path;
+      await sb.storage.from('room-photos').remove([path]);
+      await sb.from('site_photos').delete().eq('id', id);
+      sitePhotos = sitePhotos.filter(p => p.id != id);
+      homeSlide  = Math.min(homeSlide, Math.max(0, sitePhotos.length - 1));
+      renderHomeCarousel();
+      startHomeTimer();
+      showBanner('Photo deleted.');
+    });
+  });
 
   if (sitePhotos.length > 1) {
     dotsEl.innerHTML = sitePhotos.map((_, i) =>
@@ -236,6 +256,34 @@ function setupSitePhotoUpload() {
     startHomeTimer();
     showBanner('Uploaded!');
   });
+}
+
+// ─── Lightbox ─────────────────────────────────────────────────────────────
+function openLightbox(url) {
+  let lb = document.getElementById('photo-lightbox');
+  if (!lb) {
+    lb = document.createElement('div');
+    lb.id = 'photo-lightbox';
+    lb.innerHTML = `
+      <div class="lightbox-backdrop"></div>
+      <div class="lightbox-frame">
+        <button class="lightbox-close" title="Close">✕</button>
+        <img class="lightbox-img" src="" alt="Full-size photo" />
+      </div>`;
+    document.body.appendChild(lb);
+    lb.querySelector('.lightbox-backdrop').addEventListener('click', closeLightbox);
+    lb.querySelector('.lightbox-close').addEventListener('click', closeLightbox);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+  }
+  lb.querySelector('.lightbox-img').src = url;
+  lb.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  const lb = document.getElementById('photo-lightbox');
+  if (lb) lb.classList.remove('open');
+  document.body.style.overflow = '';
 }
 
 init();
