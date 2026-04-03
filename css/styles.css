@@ -140,10 +140,11 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   position: absolute;
   inset: 0;
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.8s ease;
 }
 
-.home-carousel-slide.active { opacity: 1; }
+.home-carousel-slide.active { opacity: 1; pointer-events: auto; }
 
 .carousel-delete-btn {
   position: absolute;
