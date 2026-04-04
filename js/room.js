@@ -150,7 +150,6 @@ async function init() {
 
   setupOwnerBrief();
   renderRecommendations();
-  setupTabs();
   setupEditToggle();
   setupUploadListeners();
   setupThread();
@@ -457,8 +456,8 @@ function buildViewPanel(rec) {
       </div>`;
   } else {
     html += gn
-      ? `<div class="rec-text rec-text-editable" data-edit-gn>${escHtml(gn)}</div>`
-      : `<span class="rec-empty rec-text-editable" data-edit-gn>No general notes yet — click to add.</span>`;
+      ? `<div id="general-notes-text" class="rec-text rec-text-editable" data-edit-gn>${escHtml(gn)}</div>`
+      : `<span id="general-notes-text" class="rec-empty rec-text-editable" data-edit-gn>No general notes yet — click to add.</span>`;
   }
   html += '</div>';
 
@@ -1136,4 +1135,5 @@ function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+setupTabs();
 init();
