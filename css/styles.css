@@ -1269,8 +1269,42 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   transition: background 0.1s;
 }
 
+.sie-brand-toggle {
+  display: flex;
+  gap: 0;
+  padding: 10px 12px 0;
+}
+
+.sie-brand-btn {
+  flex: 1;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sie-brand-btn:first-child {
+  border-radius: 4px 0 0 4px;
+  border-right: none;
+}
+
+.sie-brand-btn:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.sie-brand-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
 .swatch-inline-edit .bm-search-wrap {
-  padding: 10px 12px 4px;
+  padding: 6px 12px 4px;
 }
 
 .sep-bm-search {

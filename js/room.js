@@ -2,6 +2,8 @@
 let roomData = null;
 let allRooms = null;
 let bmColors = [];
+let swColors = [];
+let activeBrand = 'bm'; // 'bm' | 'sw'
 let editMode = false;
 let threadOpen = false;
 let draftMessage = '';
@@ -124,6 +126,12 @@ async function init() {
   } catch (e) {
     bmColors = []; // BM search unavailable (e.g. file:// protocol)
   }
+  try {
+    const swRes = await fetch('data/sw-colors.json');
+    swColors = await swRes.json();
+  } catch (e) {
+    swColors = []; // SW search unavailable
+  }
 
   allRooms = rooms;
   roomData = allRooms.find(r => r.id === roomId);
@@ -150,7 +158,6 @@ async function init() {
 
   setupOwnerBrief();
   renderRecommendations();
-  setupTabs();
   setupEditToggle();
   setupUploadListeners();
   setupThread();
@@ -457,8 +464,8 @@ function buildViewPanel(rec) {
       </div>`;
   } else {
     html += gn
-      ? `<div class="rec-text rec-text-editable" data-edit-gn>${escHtml(gn)}</div>`
-      : `<span class="rec-empty rec-text-editable" data-edit-gn>No general notes yet — click to add.</span>`;
+      ? `<div id="general-notes-text" class="rec-text rec-text-editable" data-edit-gn>${escHtml(gn)}</div>`
+      : `<span id="general-notes-text" class="rec-empty rec-text-editable" data-edit-gn>No general notes yet — click to add.</span>`;
   }
   html += '</div>';
 
@@ -613,11 +620,16 @@ function renderSwatchSets(sets) {
     if (editingSwatch && editingSwatch.si === si) {
       const swi = editingSwatch.swi;
       const sw  = set.swatches[swi] || {};
+      const bmActive = activeBrand === 'bm';
       html += `<div class="swatch-inline-edit">
         <div class="sie-preview" id="sie-preview" style="background:${sw.color || '#CCCCCC'}"></div>
+        <div class="sie-brand-toggle">
+          <button class="sie-brand-btn${bmActive ? ' active' : ''}" data-brand="bm">Benjamin Moore</button>
+          <button class="sie-brand-btn${!bmActive ? ' active' : ''}" data-brand="sw">Sherwin Williams</button>
+        </div>
         <div class="bm-search-wrap">
           <input type="text" class="sep-bm-search" id="sie-bm-search"
-                 placeholder="Search Benjamin Moore…" autocomplete="off">
+                 placeholder="Search ${bmActive ? 'Benjamin Moore' : 'Sherwin Williams'}…" autocomplete="off">
           <div class="bm-swatch-results" id="sie-bm-results"></div>
         </div>
         <div class="sie-row">
@@ -780,11 +792,24 @@ function setupSwatchInlineEditListeners() {
     preview.style.background = colorInput.value;
   });
 
+  body.querySelectorAll('.sie-brand-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeBrand = btn.dataset.brand;
+      btn.closest('.swatch-inline-edit').querySelectorAll('.sie-brand-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      bmSearch.placeholder = activeBrand === 'bm' ? 'Search Benjamin Moore…' : 'Search Sherwin Williams…';
+      bmSearch.value = '';
+      bmResults.innerHTML = '';
+      bmResults.classList.remove('open');
+    });
+  });
+
   bmSearch.addEventListener('input', () => {
     const q = bmSearch.value.trim().toLowerCase();
     if (!q || q.length < 2) { bmResults.innerHTML = ''; bmResults.classList.remove('open'); return; }
 
-    const matches = bmColors
+    const catalog = activeBrand === 'bm' ? bmColors : swColors;
+    const matches = catalog
       .filter(c => c.name.toLowerCase().includes(q) || c.number.toLowerCase().includes(q))
       .slice(0, 12);
 
@@ -1136,4 +1161,5 @@ function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+setupTabs();
 init();

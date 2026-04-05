@@ -1,9 +1,13 @@
 {
   "name": "stylemyshack",
   "scripts": {
-    "dev": "live-server --port=3000 --open=index.html"
+    "dev": "live-server --port=3000 --open=index.html",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:report": "playwright show-report"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "live-server": "^1.2.2"
   }
 }
