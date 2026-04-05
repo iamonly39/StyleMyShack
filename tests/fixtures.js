@@ -1,6 +1,7 @@
 /**
  * Shared Supabase mock data and route interceptors for Playwright tests.
  * Call setupMocks(page) before navigating to intercept all Supabase API calls.
+ * Call setupColorMocks(page) to intercept the static BM/SW color JSON files.
  */
 
 const SUPABASE_URL = 'https://yoikyxyrkcnvszogsyut.supabase.co';
@@ -28,6 +29,41 @@ export const MOCK_RECS = {
   client_swatches: [],
   reactions:       {},
 };
+
+export const MOCK_RECS_WITH_SWATCHES = {
+  ...MOCK_RECS,
+  swatch_sets: [
+    {
+      name: 'Palette A',
+      swatches: [{ role: 'Wall', color: '#CCCCCC', label: '' }],
+    },
+  ],
+};
+
+export const MOCK_BM_COLORS = [
+  { number: 'OC-17',  name: 'White Dove',    hex: '#F3EFE4' },
+  { number: 'HC-172', name: 'Revere Pewter', hex: '#C2B9A7' },
+  { number: 'OC-65',  name: 'Chantilly Lace', hex: '#F5F1E9' },
+];
+
+export const MOCK_SW_COLORS = [
+  { number: 'SW 7015', name: 'Repose Gray',  hex: '#C2BDB6' },
+  { number: 'SW 7006', name: 'Extra White',  hex: '#F4F4EF' },
+  { number: 'SW 6119', name: 'Antique White', hex: '#E8DCC6' },
+];
+
+/**
+ * Intercept the static BM/SW color JSON files with small test datasets.
+ * @param {import('@playwright/test').Page} page
+ */
+export async function setupColorMocks(page) {
+  await page.route('**/data/bm-colors.json', route =>
+    route.fulfill({ json: MOCK_BM_COLORS })
+  );
+  await page.route('**/data/sw-colors.json', route =>
+    route.fulfill({ json: MOCK_SW_COLORS })
+  );
+}
 
 /**
  * Intercept all Supabase REST and Storage requests and return mock data.
