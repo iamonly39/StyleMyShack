@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout Button — Animation Lab</title>
+  <style>
+    :root {
+      --bg: #0d0d11;
+      --surface: #16161e;
+      --surface2: #1e1e28;
+      --border: #2a2a38;
+      --text: #e2e2ee;
+      --muted: #72728a;
+      --accent: #7c3aed;
+      --accent-dim: rgba(124,58,237,0.18);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      padding: 2rem 1.5rem 3rem;
+    }
+
+    header {
+      max-width: 1080px;
+      margin: 0 auto 1.5rem;
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+    }
+
+    h1 { font-size: 1.3rem; font-weight: 700; color: #fff; }
+    .subtitle { font-size: 0.82rem; color: var(--muted); }
+
+    .lab {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      grid-template-rows: auto auto;
+      gap: 1.25rem;
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+
+    /* ── Preview ── */
+    .preview-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.75rem;
+      min-height: 300px;
+      padding: 2.5rem;
+      position: relative;
+    }
+
+    .preview-hint {
+      position: absolute;
+      top: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    #checkout-btn {
+      border: none;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      letter-spacing: 0.025em;
+      outline: none;
+      position: relative;
+      isolation: isolate;
+    }
+
+    #checkout-btn:not(.busy):hover { filter: brightness(1.1); }
+
+    #checkout-btn.busy { cursor: default; }
+
+    .state-line {
+      font-size: 0.8rem;
+      color: var(--muted);
+      min-height: 1.1em;
+      text-align: center;
+    }
+
+    .reset-link {
+      font-size: 0.78rem;
+      color: var(--accent);
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      display: none;
+    }
+
+    .reset-link.visible { display: block; }
+
+    /* ── Controls ── */
+    .controls-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.25rem 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+      overflow-y: auto;
+      max-height: 740px;
+    }
+
+    .section {
+      font-size: 0.67rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.13em;
+      color: var(--accent);
+      padding-bottom: 0.45rem;
+      border-bottom: 1px solid var(--border);
+      margin-top: 0.2rem;
+    }
+
+    .ctrl { display: flex; flex-direction: column; gap: 0.38rem; }
+
+    .ctrl-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .ctrl-label {
+      font-size: 0.77rem;
+      color: var(--muted);
+    }
+
+    .ctrl-val {
+      font-size: 0.77rem;
+      font-weight: 600;
+      color: var(--text);
+      background: var(--surface2);
+      padding: 1px 7px;
+      border-radius: 4px;
+      min-width: 52px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      transition: box-shadow 0.15s;
+    }
+
+    input[type="range"]:focus-visible::-webkit-slider-thumb,
+    input[type="range"]::-webkit-slider-thumb:hover {
+      box-shadow: 0 0 0 4px var(--accent-dim);
+    }
+
+    select {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 6px 9px;
+      font-size: 0.81rem;
+      outline: none;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 0.38rem; }
+    .chips input[type="radio"] { display: none; }
+    .chips label {
+      font-size: 0.77rem;
+      padding: 4px 11px;
+      border-radius: 5px;
+      cursor: pointer;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+      user-select: none;
+    }
+    .chips input:checked + label {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .color-row { display: flex; align-items: center; gap: 0.6rem; }
+
+    input[type="color"] {
+      height: 32px;
+      flex: 1;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: none;
+      cursor: pointer;
+      padding: 2px 3px;
+    }
+
+    .swatch {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      flex-shrink: 0;
+      transition: background 0.15s;
+    }
+
+    /* ── Output ── */
+    .output-panel {
+      grid-column: 1 / -1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.25rem 1.4rem;
+    }
+
+    .output-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.9rem;
+    }
+
+    .output-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+    }
+
+    .copy-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 7px 18px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: filter 0.15s, background 0.2s;
+    }
+
+    .copy-btn:hover { filter: brightness(1.15); }
+    .copy-btn.ok { background: #16a34a; }
+
+    pre {
+      background: var(--surface2);
+      border-radius: 8px;
+      padding: 1rem 1.2rem;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 0.79rem;
+      line-height: 1.75;
+      overflow-x: auto;
+      color: #c9d1d9;
+    }
+
+    .k { color: #79c0ff; }
+    .s { color: #a5d6ff; }
+    .n { color: #f0883e; }
+    .p { color: #8b949e; }
+
+    @media (max-width: 700px) {
+      .lab { grid-template-columns: 1fr; }
+      .output-panel { grid-column: 1; }
+      .controls-panel { max-height: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Checkout Button — Animation Lab</h1>
+  <span class="subtitle">Click the button to preview. Adjust sliders, then copy.</span>
+</header>
+
+<div class="lab">
+
+  <!-- Preview -->
+  <div class="preview-panel">
+    <span class="preview-hint">Click to preview</span>
+    <button id="checkout-btn">Checkout</button>
+    <span class="state-line" id="state-line">Ready</span>
+    <span class="reset-link" id="reset-link" role="button" tabindex="0">Reset</span>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls-panel">
+
+    <div class="section">Animation Type</div>
+    <div class="ctrl">
+      <div class="chips">
+        <input type="radio" name="animType" id="at-bounce" value="bounce" checked>
+        <label for="at-bounce">Bounce</label>
+        <input type="radio" name="animType" id="at-pulse" value="pulse">
+        <label for="at-pulse">Pulse</label>
+        <input type="radio" name="animType" id="at-shake" value="shake">
+        <label for="at-shake">Shake</label>
+        <input type="radio" name="animType" id="at-spin" value="spin">
+        <label for="at-spin">Spin</label>
+        <input type="radio" name="animType" id="at-squish" value="squish">
+        <label for="at-squish">Squish</label>
+        <input type="radio" name="animType" id="at-jelly" value="jelly">
+        <label for="at-jelly">Jelly</label>
+      </div>
+    </div>
+
+    <div class="section">Timing</div>
+
+    <div class="ctrl">
+      <div class="ctrl-head">
+        <span class="ctrl-label">Animation duration</span>
+        <span class="ctrl-val" id="v-dur">600ms</span>
+      </div>
+      <input type="range" id="s-dur" min="150" max="1500" step="50" value="600">
+    </div>
+
+    <div class="ctrl">
+      <div class="ctrl-head">
+        <span class="ctrl-label">Purple delay (after click)</span>
+        <span class="ctrl-val" id="v-delay">200ms</span>
+      </div>
+      <input type="range" id="s-delay" min="0" max="1200" step="25" value="200">
+    </div>
+
+    <div class="ctrl">
+      <div class="ctrl-head">
+        <span class="ctrl-label">Purple transition speed</span>
+        <span class="ctrl-val" id="v-speed">150ms</span>
+      </div>
+      <input type="range" id="s-speed" min="20" max="700" step="10" value="150">
+    </div>
+
+    <div class="section">Motion</div>
+
+    <div class="ctrl">
+      <div class="ctrl-head">
+        <span class="ctrl-label">Intensity</span>
+        <span class="ctrl-val" id="v-intensity">10</span>
+      </div>
+      <input type="range" id="s-intensity" min="1" max="30" step="1" value="10">
+    </div>
+
+    <div class="ctrl">
+      <span class="ctrl-label" style="margin-bottom:0.3rem;display:block">Easing</span>
+      <select id="s-easing">
+        <option value="ease-out">ease-out</option>
+        <option value="ease">ease</option>
+        <option value="ease-in-out">ease-in-out</option>
+        <option value="linear">linear</option>
+        <option value="cubic-bezier(0.34,1.56,0.64,1)">spring (overshoot)</option>
+        <option value="cubic-bezier(0.68,-0.55,0.265,1.55)">elastic</option>
+        <option value="cubic-bezier(0.175,0.885,0.32,1.275)">back-out</option>
+      </select>
+    </div>
+
+    <div class="section">Button Shape</div>
+
+    <div class="ctrl">
+      <div class="ctrl-head">
+        <span class="ctrl-label">Border radius</span>
+        <span class="ctrl-val" id="v-radius">8px</span>
+      </div>
+      <input type="range" id="s-radius" min="0" max="50" step="1" value="8">
+    </div>
+
+    <div class="ctrl">
+      <div class="ctrl-head">
+        <span class="ctrl-label">Padding (vertical)</span>
+        <span class="ctrl-val" id="v-pad">14px</span>
+      </div>
+      <input type="range" id="s-pad" min="6" max="28" step="2" value="14">
+    </div>
+
+    <div class="ctrl">
+      <span class="ctrl-label" style="margin-bottom:0.3rem;display:block">Start color</span>
+      <input type="color" id="s-start-color" value="#22c55e">
+    </div>
+
+    <div class="section">Purple Color</div>
+
+    <div class="ctrl">
+      <div class="ctrl-head">
+        <span class="ctrl-label">Hue</span>
+        <span class="ctrl-val" id="v-hue">270°</span>
+      </div>
+      <input type="range" id="s-hue" min="230" max="320" step="1" value="270">
+    </div>
+
+    <div class="ctrl">
+      <div class="ctrl-head">
+        <span class="ctrl-label">Saturation</span>
+        <span class="ctrl-val" id="v-sat">78%</span>
+      </div>
+      <input type="range" id="s-sat" min="30" max="100" step="1" value="78">
+    </div>
+
+    <div class="ctrl">
+      <div class="ctrl-head">
+        <span class="ctrl-label">Lightness</span>
+        <span class="ctrl-val" id="v-light">52%</span>
+      </div>
+      <input type="range" id="s-light" min="20" max="72" step="1" value="52">
+    </div>
+
+    <div class="ctrl">
+      <span class="ctrl-label" style="margin-bottom:0.3rem;display:block">Preview</span>
+      <div class="color-row">
+        <div class="swatch" id="purple-swatch"></div>
+        <span class="ctrl-val" id="purple-hex" style="min-width:auto;flex:1;text-align:left;padding:4px 9px">—</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Output -->
+  <div class="output-panel">
+    <div class="output-header">
+      <span class="output-title">Current Parameters</span>
+      <button class="copy-btn" id="copy-btn">Copy Parameters</button>
+    </div>
+    <pre id="params-pre"></pre>
+  </div>
+
+</div>
+
+<script>
+  const btn       = document.getElementById('checkout-btn');
+  const stateLine = document.getElementById('state-line');
+  const resetLink = document.getElementById('reset-link');
+  const paramsPre = document.getElementById('params-pre');
+  const copyBtn   = document.getElementById('copy-btn');
+  const purpleSwatch = document.getElementById('purple-swatch');
+  const purpleHex    = document.getElementById('purple-hex');
+
+  const $ = id => document.getElementById(id);
+
+  let busy = false;
+  let resetTimer = null;
+  let purpleTimer = null;
+
+  // ── Keyframe injection (reliable cross-browser intensity control) ──
+
+  function injectKeyframes(type, dist, scale) {
+    const el = document.getElementById('dyn-kf');
+    if (el) el.remove();
+    const style = document.createElement('style');
+    style.id = 'dyn-kf';
+    const d = dist.toFixed(1);
+    const s = scale.toFixed(4);
+    const kf = {
+      bounce: `
+        @keyframes ca {
+          0%,100% { transform: translateY(0) scale(1); }
+          25%  { transform: translateY(-${d}px) scale(1.03); }
+          45%  { transform: translateY(${(dist*0.4).toFixed(1)}px) scale(0.97); }
+          65%  { transform: translateY(-${(dist*0.18).toFixed(1)}px) scale(1.01); }
+          82%  { transform: translateY(${(dist*0.08).toFixed(1)}px); }
+        }`,
+      pulse: `
+        @keyframes ca {
+          0%,100% { transform: scale(1); }
+          35%  { transform: scale(${(1+parseFloat(s)).toFixed(3)}); }
+          62%  { transform: scale(${(1-parseFloat(s)*0.38).toFixed(3)}); }
+          82%  { transform: scale(${(1+parseFloat(s)*0.14).toFixed(3)}); }
+        }`,
+      shake: `
+        @keyframes ca {
+          0%,100% { transform: translateX(0) rotate(0deg); }
+          12%  { transform: translateX(-${d}px) rotate(-1.8deg); }
+          25%  { transform: translateX(${d}px) rotate(1.8deg); }
+          37%  { transform: translateX(-${(dist*0.7).toFixed(1)}px) rotate(-1.1deg); }
+          50%  { transform: translateX(${(dist*0.5).toFixed(1)}px) rotate(0.7deg); }
+          65%  { transform: translateX(-${(dist*0.28).toFixed(1)}px); }
+          80%  { transform: translateX(${(dist*0.12).toFixed(1)}px); }
+        }`,
+      spin: `
+        @keyframes ca {
+          0%   { transform: rotate(0deg) scale(1); }
+          35%  { transform: rotate(195deg) scale(${(1+parseFloat(s)*0.45).toFixed(3)}); }
+          68%  { transform: rotate(330deg) scale(${(1-parseFloat(s)*0.08).toFixed(3)}); }
+          100% { transform: rotate(360deg) scale(1); }
+        }`,
+      squish: `
+        @keyframes ca {
+          0%,100% { transform: scale(1,1); }
+          18%  { transform: scale(${(1+parseFloat(s)*0.7).toFixed(3)},${(1-parseFloat(s)*1.1).toFixed(3)}); }
+          40%  { transform: scale(${(1-parseFloat(s)*0.45).toFixed(3)},${(1+parseFloat(s)*1.05).toFixed(3)}); }
+          62%  { transform: scale(${(1+parseFloat(s)*0.22).toFixed(3)},${(1-parseFloat(s)*0.45).toFixed(3)}); }
+          80%  { transform: scale(${(1-parseFloat(s)*0.1).toFixed(3)},${(1+parseFloat(s)*0.15).toFixed(3)}); }
+        }`,
+      jelly: `
+        @keyframes ca {
+          0%,100% { transform: scale(1,1); }
+          18%  { transform: scale(${(1-parseFloat(s)*0.45).toFixed(3)},${(1+parseFloat(s)*1.6).toFixed(3)}); }
+          36%  { transform: scale(${(1+parseFloat(s)*1.4).toFixed(3)},${(1-parseFloat(s)*0.75).toFixed(3)}); }
+          54%  { transform: scale(${(1-parseFloat(s)*0.42).toFixed(3)},${(1+parseFloat(s)*0.95).toFixed(3)}); }
+          70%  { transform: scale(${(1+parseFloat(s)*0.22).toFixed(3)},${(1-parseFloat(s)*0.32).toFixed(3)}); }
+          84%  { transform: scale(${(1-parseFloat(s)*0.1).toFixed(3)},${(1+parseFloat(s)*0.12).toFixed(3)}); }
+        }`,
+    };
+    style.textContent = (kf[type] || kf.bounce).trim();
+    document.head.appendChild(style);
+  }
+
+  // ── Values ──
+
+  function getValues() {
+    return {
+      animType    : document.querySelector('input[name="animType"]:checked').value,
+      playDuration: parseInt($('s-dur').value),
+      purpleDelay : parseInt($('s-delay').value),
+      purpleSpeed : parseInt($('s-speed').value),
+      intensity   : parseInt($('s-intensity').value),
+      easing      : $('s-easing').value,
+      borderRadius: parseInt($('s-radius').value),
+      vertPad     : parseInt($('s-pad').value),
+      startColor  : $('s-start-color').value,
+      hue         : parseInt($('s-hue').value),
+      sat         : parseInt($('s-sat').value),
+      light       : parseInt($('s-light').value),
+    };
+  }
+
+  function purpleColor(v) {
+    return `hsl(${v.hue}, ${v.sat}%, ${v.light}%)`;
+  }
+
+  // Rough HSL→hex for display
+  function hslToHex(h, s, l) {
+    s /= 100; l /= 100;
+    const a = s * Math.min(l, 1 - l);
+    const f = n => {
+      const k = (n + h / 30) % 12;
+      const c = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+      return Math.round(255 * c).toString(16).padStart(2, '0');
+    };
+    return `#${f(0)}${f(8)}${f(4)}`;
+  }
+
+  // ── UI sync ──
+
+  function syncUI() {
+    const v = getValues();
+    $('v-dur').textContent       = `${v.playDuration}ms`;
+    $('v-delay').textContent     = `${v.purpleDelay}ms`;
+    $('v-speed').textContent     = `${v.purpleSpeed}ms`;
+    $('v-intensity').textContent = v.intensity;
+    $('v-radius').textContent    = `${v.borderRadius}px`;
+    $('v-pad').textContent       = `${v.vertPad}px`;
+    $('v-hue').textContent       = `${v.hue}°`;
+    $('v-sat').textContent       = `${v.sat}%`;
+    $('v-light').textContent     = `${v.light}%`;
+
+    const pc = purpleColor(v);
+    purpleSwatch.style.background = pc;
+    purpleHex.textContent = hslToHex(v.hue, v.sat, v.light);
+
+    if (!busy) {
+      btn.style.backgroundColor = v.startColor;
+      btn.style.transition = 'none';
+    }
+    btn.style.borderRadius = `${v.borderRadius}px`;
+    btn.style.padding = `${v.vertPad}px ${Math.round(v.vertPad * 2.4)}px`;
+
+    updateOutput(v);
+  }
+
+  function updateOutput(v) {
+    const p = {
+      animationType       : v.animType,
+      playDuration        : `${v.playDuration}ms`,
+      purpleDelay         : `${v.purpleDelay}ms`,
+      purpleTransitionSpeed: `${v.purpleSpeed}ms`,
+      intensity           : v.intensity,
+      easing              : v.easing,
+      borderRadius        : `${v.borderRadius}px`,
+      startColor          : v.startColor,
+      purpleColor         : purpleColor(v),
+    };
+    const rows = Object.entries(p).map(([k, val]) => {
+      const isNum = typeof val === 'number';
+      const v2 = isNum
+        ? `<span class="n">${val}</span>`
+        : `<span class="s">"${val}"</span>`;
+      return `  <span class="k">"${k}"</span><span class="p">:</span> ${v2}`;
+    });
+    paramsPre.innerHTML = `<span class="p">{</span>\n${rows.join('<span class="p">,</span>\n')}\n<span class="p">}</span>`;
+  }
+
+  // ── Reset ──
+
+  function doReset(silent) {
+    clearTimeout(resetTimer);
+    clearTimeout(purpleTimer);
+
+    btn.style.animation = 'none';
+    void btn.offsetWidth;
+    btn.style.transition = 'none';
+    btn.style.backgroundColor = $('s-start-color').value;
+    void btn.offsetWidth;
+    btn.classList.remove('busy');
+
+    busy = false;
+    resetLink.classList.remove('visible');
+    if (!silent) {
+      stateLine.textContent = 'Ready — click to try again';
+    }
+  }
+
+  // ── Play ──
+
+  function play() {
+    if (busy) return;
+    busy = true;
+
+    clearTimeout(resetTimer);
+    clearTimeout(purpleTimer);
+
+    const v = getValues();
+    const pc = purpleColor(v);
+    const dist = v.intensity;
+    const scale = v.intensity / 100;
+
+    injectKeyframes(v.animType, dist, scale);
+
+    btn.classList.add('busy');
+    btn.style.backgroundColor = v.startColor;
+    btn.style.transition = 'none';
+    void btn.offsetWidth;
+
+    btn.style.animation = `ca ${v.playDuration}ms ${v.easing} forwards`;
+    stateLine.textContent = `Playing "${v.animType}"…`;
+    resetLink.classList.remove('visible');
+
+    purpleTimer = setTimeout(() => {
+      btn.style.transition = `background-color ${v.purpleSpeed}ms ${v.easing}`;
+      btn.style.backgroundColor = pc;
+      stateLine.textContent = 'Turning purple!';
+    }, v.purpleDelay);
+
+    const totalMs = Math.max(v.playDuration, v.purpleDelay + v.purpleSpeed) + 900;
+    resetTimer = setTimeout(() => {
+      stateLine.textContent = 'Done';
+      resetLink.classList.add('visible');
+      busy = false;
+      btn.classList.remove('busy');
+    }, totalMs);
+  }
+
+  // ── Events ──
+
+  btn.addEventListener('click', play);
+
+  resetLink.addEventListener('click', doReset);
+  resetLink.addEventListener('keydown', e => { if (e.key === 'Enter') doReset(); });
+
+  document.querySelectorAll('input, select').forEach(el => {
+    el.addEventListener('input', syncUI);
+  });
+
+  copyBtn.addEventListener('click', () => {
+    const v = getValues();
+    const p = {
+      animationType        : v.animType,
+      playDuration         : `${v.playDuration}ms`,
+      purpleDelay          : `${v.purpleDelay}ms`,
+      purpleTransitionSpeed: `${v.purpleSpeed}ms`,
+      intensity            : v.intensity,
+      easing               : v.easing,
+      borderRadius         : `${v.borderRadius}px`,
+      startColor           : v.startColor,
+      purpleColor          : purpleColor(v),
+    };
+    navigator.clipboard.writeText(JSON.stringify(p, null, 2)).then(() => {
+      copyBtn.textContent = '✓ Copied!';
+      copyBtn.classList.add('ok');
+      setTimeout(() => {
+        copyBtn.textContent = 'Copy Parameters';
+        copyBtn.classList.remove('ok');
+      }, 2200);
+    });
+  });
+
+  // ── Init ──
+  syncUI();
+  stateLine.textContent = 'Ready — click the button to preview';
+</script>
+</body>
+</html>
