@@ -433,6 +433,22 @@ function setupItemListeners() {
 function buildViewPanel(rec) {
   let html = '';
 
+  const gn = rec.general_notes || '';
+  html += `<div class="rec-section"><div class="rec-section-label">General Notes</div>`;
+  if (editingGeneralNotes) {
+    html += `<textarea class="edit-field" id="field-general_notes" rows="3"
+      placeholder="Any other notes…">${escHtml(gn)}</textarea>
+      <div class="inline-edit-actions">
+        <button class="inline-save-btn" id="save-gn-btn">✓ Save</button>
+        <button class="inline-cancel-btn" id="cancel-gn-btn">Cancel</button>
+      </div>`;
+  } else {
+    html += gn
+      ? `<div id="general-notes-text" class="rec-text rec-text-editable" data-edit-gn>${escHtml(gn)}</div>`
+      : `<span id="general-notes-text" class="rec-empty rec-text-editable" data-edit-gn>No general notes yet — click to add.</span>`;
+  }
+  html += '</div>';
+
   REC_CATEGORIES.forEach(cat => {
     const items = rec[cat.key] || [];
     html += `<div class="rec-section"><div class="rec-section-label">${cat.label}</div>`;
@@ -453,22 +469,6 @@ function buildViewPanel(rec) {
     html += '</div>';
   });
 
-  const gn = rec.general_notes || '';
-  html += `<div class="rec-section"><div class="rec-section-label">General Notes</div>`;
-  if (editingGeneralNotes) {
-    html += `<textarea class="edit-field" id="field-general_notes" rows="3"
-      placeholder="Any other notes…">${escHtml(gn)}</textarea>
-      <div class="inline-edit-actions">
-        <button class="inline-save-btn" id="save-gn-btn">✓ Save</button>
-        <button class="inline-cancel-btn" id="cancel-gn-btn">Cancel</button>
-      </div>`;
-  } else {
-    html += gn
-      ? `<div id="general-notes-text" class="rec-text rec-text-editable" data-edit-gn>${escHtml(gn)}</div>`
-      : `<span id="general-notes-text" class="rec-empty rec-text-editable" data-edit-gn>No general notes yet — click to add.</span>`;
-  }
-  html += '</div>';
-
   html += `<div class="rec-section"><div class="rec-section-label">Color Palettes</div>
     ${renderSwatchSets(rec.swatch_sets || [])}
   </div>`;
@@ -479,6 +479,11 @@ function buildViewPanel(rec) {
 
 function buildEditForm(rec) {
   let html = '';
+
+  html += `<div class="rec-section"><div class="rec-section-label">General Notes</div>
+    <textarea class="edit-field" id="field-general_notes" rows="3"
+      placeholder="Any other notes…">${escHtml(rec.general_notes || '')}</textarea>
+  </div>`;
 
   REC_CATEGORIES.forEach(cat => {
     const items = rec[cat.key] || [];
@@ -491,11 +496,6 @@ function buildEditForm(rec) {
       <button class="add-item-btn" data-add-category="${cat.key}">+ Add ${cat.label} item</button>
     </div>`;
   });
-
-  html += `<div class="rec-section"><div class="rec-section-label">General Notes</div>
-    <textarea class="edit-field" id="field-general_notes" rows="3"
-      placeholder="Any other notes…">${escHtml(rec.general_notes || '')}</textarea>
-  </div>`;
 
   html += `<div class="rec-section"><div class="rec-section-label">Color Palettes</div>
     ${renderSwatchSets(rec.swatch_sets || [])}
@@ -605,12 +605,13 @@ function renderSwatchSets(sets) {
 
     (set.swatches || []).forEach((sw, swi) => {
       const active = editingSwatch && editingSwatch.si === si && editingSwatch.swi === swi;
-      html += `<button class="swatch-circle-btn${active ? ' swatch-circle-active' : ''}" data-open-swatch="${si}-${swi}"
-               style="background:${sw.color || '#CCCCCC'}"
-               title="${escHtml(sw.role || '')}">
-        <span class="swatch-circle-role">${escHtml(sw.role || '')}</span>
+      html += `<div class="swatch-chip">
+        <button class="swatch-circle-btn${active ? ' swatch-circle-active' : ''}" data-open-swatch="${si}-${swi}"
+                style="background:${sw.color || '#CCCCCC'}"
+                title="${escHtml(sw.role || '')}"></button>
+        ${sw.role ? `<span class="swatch-circle-role">${escHtml(sw.role)}</span>` : ''}
         ${sw.label ? `<span class="swatch-circle-label">${escHtml(sw.label)}</span>` : ''}
-      </button>`;
+      </div>`;
     });
 
     html += `<button class="swatch-add-circle-btn" data-add-swatch="${si}" title="Add swatch">+</button>
