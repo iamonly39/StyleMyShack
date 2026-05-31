@@ -130,3 +130,30 @@ CREATE POLICY "room-photos anon upload"
 
 CREATE POLICY "room-photos anon delete"
   ON storage.objects FOR DELETE USING (bucket_id = 'room-photos');
+
+-- ─── Phase 2 Tables (also in migrations/phase2.sql) ────────────────────────────
+CREATE TABLE IF NOT EXISTS user_roles (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email       TEXT UNIQUE NOT NULL,
+  role        TEXT NOT NULL CHECK (role IN ('builder')),
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS builder_updates (
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  room_id             TEXT REFERENCES rooms(id) ON DELETE CASCADE,
+  storage_path        TEXT NOT NULL,
+  caption             TEXT DEFAULT '',
+  uploaded_by         TEXT NOT NULL,
+  promoted_to_gallery BOOLEAN DEFAULT FALSE,
+  created_at          TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS comments (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  room_id      TEXT REFERENCES rooms(id) ON DELETE CASCADE,
+  user_email   TEXT NOT NULL,
+  display_name TEXT DEFAULT '',
+  text         TEXT NOT NULL,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
