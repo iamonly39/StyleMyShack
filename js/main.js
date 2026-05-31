@@ -39,11 +39,19 @@ async function loadRoomThumb(roomId) {
 
 // ─── Init ─────────────────────────────────────────────────────────────────
 async function init() {
+  const user = await waitForAuth();
+
   const [roomsRes, settingsRes, sitePhotosRes] = await Promise.all([
     sb.from('rooms').select('*').order('sort_order'),
     sb.from('settings').select('*'),
     sb.from('site_photos').select('*').order('sort_order')
   ]);
+
+  // Hide upload and delete controls for non-owners
+  if (user?.role !== 'owner') {
+    const uploadLabel = document.querySelector('.home-carousel-upload');
+    if (uploadLabel) uploadLabel.style.display = 'none';
+  }
 
   // Cabin name
   const cabinName = settingsRes.data?.find(s => s.key === 'cabin_name')?.value || 'My Cabin';
@@ -53,6 +61,7 @@ async function init() {
 
   let savedName = cabinName;
   nameEl.addEventListener('click', () => {
+    if (user?.role !== 'owner') return;
     if (nameEl.contentEditable === 'true') return;
     nameEl.contentEditable = 'true';
     nameEl.classList.add('title-editing');
@@ -80,11 +89,11 @@ async function init() {
     }
   });
 
-  // Owner's Brief (home-level)
+  // Project Summary (home-level)
   const ownerNotesEl = document.getElementById('owner-notes-text');
   if (ownerNotesEl) {
     const ownerNotesVal = settingsRes.data?.find(s => s.key === 'owner_notes')?.value || '';
-    renderOwnerBrief(ownerNotesEl, ownerNotesVal);
+    renderOwnerBrief(ownerNotesEl, ownerNotesVal, user);
   }
 
   // Room cards
@@ -133,9 +142,9 @@ async function init() {
   setupSitePhotoUpload();
 }
 
-// ─── Owner's Brief ─────────────────────────────────────────────────────────
-function renderOwnerBrief(el, value) {
-  const placeholder = el.dataset.placeholder || 'Click to add notes…';
+// ─── Project Summary ────────────────────────────────────────────────────────
+function renderOwnerBrief(el, value, user) {
+  const placeholder = el.dataset.placeholder || 'Add a project overview…';
   if (value) {
     el.textContent = value;
     el.classList.remove('is-placeholder');
@@ -147,6 +156,7 @@ function renderOwnerBrief(el, value) {
   let savedValue = value;
 
   el.addEventListener('click', function startEdit() {
+    if (user?.role !== 'owner') return;
     if (el.contentEditable === 'true') return;
     el.classList.remove('is-placeholder');
     el.contentEditable = 'true';
@@ -173,7 +183,7 @@ function renderOwnerBrief(el, value) {
       showBanner('Saved!');
     }
     if (!savedValue) {
-      el.textContent = placeholder;
+      el.textContent = 'Add a project overview…';
       el.classList.add('is-placeholder');
     } else {
       el.textContent = savedValue;
@@ -209,10 +219,11 @@ function renderHomeCarousel() {
     return;
   }
 
+  const isOwner = currentUser?.role === 'owner';
   wrap.innerHTML = sitePhotos.map((p, i) =>
     `<div class="home-carousel-slide${i === homeSlide ? ' active' : ''}">
        <img src="${p.publicUrl}" alt="Site photo ${i + 1}" class="carousel-clickable">
-       <button class="carousel-delete-btn" data-id="${p.id}" data-path="${p.storage_path}" title="Delete photo">✕</button>
+       ${isOwner ? `<button class="carousel-delete-btn" data-id="${p.id}" data-path="${p.storage_path}" title="Delete photo">✕</button>` : ''}
      </div>`
   ).join('');
 
