@@ -12,6 +12,11 @@ async function init() {
     sb.from('builder_updates').select('*').eq('promoted_to_gallery', true).order('created_at')
   ]);
 
+  if (roomsRes.error || photosRes.error || updatesRes.error) {
+    showBanner('Failed to load gallery — try again.');
+    return;
+  }
+
   const rooms   = roomsRes.data   || [];
   const photos  = photosRes.data  || [];
   const updates = updatesRes.data || [];
@@ -99,7 +104,7 @@ function renderGrid() {
     if (isOwner && photo.source === 'photo') {
       ownerControls = `<button class="gallery-remove-btn" data-photo-id="${escHtml(String(photo.id))}">Remove from gallery</button>`;
     } else if (isOwner && photo.source === 'builder_update') {
-      ownerControls = `<span class="builder-in-gallery" style="font-size:0.7rem;">In gallery ✓</span>`;
+      ownerControls = `<span class="builder-in-gallery">In gallery ✓</span>`;
     }
 
     return `<div class="gallery-photo-card" data-room-id="${escHtml(photo.roomId)}">
@@ -178,7 +183,8 @@ function escHtml(str) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────
