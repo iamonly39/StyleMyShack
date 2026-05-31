@@ -211,7 +211,7 @@ function renderHomeCarousel() {
       <div class="home-carousel-slide active">
         <div class="home-carousel-empty">
           <div class="home-carousel-empty-icon">📷</div>
-          <p>Got photos of the cabin? Add them here so the designer can see the space.</p>
+          <p>Got photos of the cabin? Add them here to showcase the space.</p>
         </div>
       </div>`;
     dotsEl.innerHTML  = '';
