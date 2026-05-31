@@ -389,6 +389,8 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   background: white;
 }
 
+.tab-empty { opacity: 0.45; }
+
 .photo-content {
   display: none;
   padding: 1rem;

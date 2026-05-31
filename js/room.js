@@ -165,12 +165,19 @@ async function persistRecs() {
 
 // ─── Init ─────────────────────────────────────────────────────────────────
 async function init() {
+  await waitForAuth();
+
   const params = new URLSearchParams(window.location.search);
   const roomId = params.get('id');
 
+  const isOwner = currentUser?.role === 'owner';
+  const canSeeThread = currentUser?.role === 'owner' || currentUser?.role === 'builder';
+
   const [roomsRes, messagesRes] = await Promise.all([
     sb.from('rooms').select('*').order('sort_order'),
-    sb.from('messages').select('*').eq('room_id', roomId).order('created_at')
+    canSeeThread
+      ? sb.from('messages').select('*').eq('room_id', roomId).order('created_at')
+      : Promise.resolve({ data: [] })
   ]);
 
   const rooms    = roomsRes.data    || [];
@@ -212,12 +219,66 @@ async function init() {
     renderRoomNav()
   ]);
 
+  // Gate edit toggle — owner only
+  const editToggle = document.getElementById('edit-toggle');
+  if (editToggle) editToggle.style.display = isOwner ? '' : 'none';
+
+  // Gate upload wraps — owner only (they start hidden; only show for owner)
+  if (isOwner) {
+    // upload visibility is managed by enterEditMode/exitEditMode; nothing to do here
+  } else {
+    // Ensure upload wraps stay hidden for non-owners and disable the placeholder click-to-upload
+    ['actual', 'model3d', 'floorPlan', 'inspiration'].forEach(tab => {
+      const wrap = document.getElementById('upload-wrap-' + tab);
+      if (wrap) wrap.remove();
+    });
+  }
+
+  // Gate thread section — owner and builder only
+  const threadSection = document.querySelector('.thread-section');
+  if (threadSection) threadSection.style.display = canSeeThread ? '' : 'none';
+
   setupOwnerBrief();
   renderRecommendations();
-  setupEditToggle();
+  if (isOwner) {
+    setupEditToggle();
+  }
   setupUploadListeners();
-  setupThread();
-  renderThread();
+  if (canSeeThread) {
+    setupThread();
+    renderThread();
+  }
+
+  // Update tab labels with photo counts
+  updateTabCounts(roomId);
+}
+
+// ─── Tab Photo Counts ─────────────────────────────────────────────────────
+const TAB_LABELS = {
+  actual:      'Actual Photos',
+  model3d:     '3D Model',
+  floorPlan:   'Floor Plan',
+  inspiration: 'Inspiration'
+};
+
+async function updateTabCounts(roomId) {
+  const tabs = ['actual', 'model3d', 'floorPlan', 'inspiration'];
+  await Promise.all(tabs.map(async tab => {
+    const { count } = await sb.from('photos')
+      .select('id', { count: 'exact', head: true })
+      .eq('room_id', roomId)
+      .eq('tab', tab);
+    const btn = document.querySelector(`.photo-tab[data-tab="${tab}"]`);
+    if (!btn) return;
+    const n = count || 0;
+    if (n > 0) {
+      btn.textContent = `${TAB_LABELS[tab]} · ${n}`;
+      btn.classList.remove('tab-empty');
+    } else {
+      btn.textContent = TAB_LABELS[tab];
+      btn.classList.add('tab-empty');
+    }
+  }));
 }
 
 // ─── Room Nav Strip ────────────────────────────────────────────────────────
@@ -306,17 +367,26 @@ async function renderGallery(tab) {
   const container = document.getElementById('gallery-' + tab);
   const meta      = GALLERY_ICONS[tab];
   const photos    = await loadPhotos(roomData.id, tab);
+  const isOwner   = currentUser?.role === 'owner';
 
   if (photos.length === 0) {
-    container.innerHTML = `
-      <div class="photo-placeholder photo-placeholder-upload">
-        <span class="icon">${meta.icon}</span>
-        <p>${meta.empty}</p>
-        <span class="placeholder-upload-hint">Click to add photos</span>
-      </div>`;
-    container.querySelector('.photo-placeholder-upload').addEventListener('click', () => {
-      document.getElementById('upload-' + tab).click();
-    });
+    if (isOwner) {
+      container.innerHTML = `
+        <div class="photo-placeholder photo-placeholder-upload">
+          <span class="icon">${meta.icon}</span>
+          <p>${meta.empty}</p>
+          <span class="placeholder-upload-hint">Click to add photos</span>
+        </div>`;
+      container.querySelector('.photo-placeholder-upload').addEventListener('click', () => {
+        document.getElementById('upload-' + tab).click();
+      });
+    } else {
+      container.innerHTML = `
+        <div class="photo-placeholder">
+          <span class="icon">${meta.icon}</span>
+          <p>${meta.empty}</p>
+        </div>`;
+    }
     return;
   }
 
@@ -329,9 +399,9 @@ async function renderGallery(tab) {
     container.innerHTML = `
       <div class="photo-main-wrap">
         <img class="photo-main" src="${urls[activeIdx]}" alt="Photo ${activeIdx + 1}" />
-        <button class="photo-pin-btn${isPinnedActive ? ' is-pinned' : ''}" data-idx="${activeIdx}"
-                title="${isPinnedActive ? 'Cover photo' : 'Set as cover photo'}">📌</button>
-        ${editMode ? `<button class="photo-main-delete" data-idx="${activeIdx}">Delete</button>` : ''}
+        ${isOwner ? `<button class="photo-pin-btn${isPinnedActive ? ' is-pinned' : ''}" data-idx="${activeIdx}"
+                title="${isPinnedActive ? 'Cover photo' : 'Set as cover photo'}">📌</button>` : ''}
+        ${isOwner && editMode ? `<button class="photo-main-delete" data-idx="${activeIdx}">Delete</button>` : ''}
       </div>
       ${urls.length > 1 ? `
         <div class="photo-thumbs">
@@ -342,7 +412,7 @@ async function renderGallery(tab) {
                 <img class="photo-thumb ${i === activeIdx ? 'active' : ''}"
                      src="${u}" alt="Thumbnail ${i + 1}" data-idx="${i}" />
                 ${isThisPinned ? '<span class="thumb-pin-badge">📌</span>' : ''}
-                ${editMode ? `<button class="photo-delete-btn" data-idx="${i}" title="Delete">✕</button>` : ''}
+                ${isOwner && editMode ? `<button class="photo-delete-btn" data-idx="${i}" title="Delete">✕</button>` : ''}
               </div>`;
           }).join('')}
         </div>` : ''}
@@ -356,7 +426,7 @@ async function renderGallery(tab) {
       openLightbox(urls[activeIdx]);
     });
 
-    container.querySelector('.photo-pin-btn').addEventListener('click', async e => {
+    container.querySelector('.photo-pin-btn')?.addEventListener('click', async e => {
       e.stopPropagation();
       const idx = +e.currentTarget.dataset.idx;
       await sb.from('photos').update({ is_pinned: false }).eq('room_id', roomData.id);
@@ -496,35 +566,42 @@ function setupItemListeners() {
 
 function buildViewPanel(rec) {
   let html = '';
+  const isOwner = currentUser?.role === 'owner';
 
   const gn = rec.general_notes || '';
-  html += `<div class="rec-section"><div class="rec-section-label">General Notes</div>`;
-  if (editingGeneralNotes) {
-    html += `<textarea class="edit-field" id="field-general_notes" rows="3"
-      placeholder="Any other notes…">${escHtml(gn)}</textarea>
-      <div class="inline-edit-actions">
-        <button class="inline-save-btn" id="save-gn-btn">✓ Save</button>
-        <button class="inline-cancel-btn" id="cancel-gn-btn">Cancel</button>
-      </div>`;
-  } else {
-    html += gn
-      ? `<div id="general-notes-text" class="rec-text rec-text-editable" data-edit-gn>${escHtml(gn)}</div>`
-      : `<span id="general-notes-text" class="rec-empty rec-text-editable" data-edit-gn>No general notes yet — click to add.</span>`;
+  // Non-owners: skip General Notes if empty
+  if (isOwner || gn.trim() !== '') {
+    html += `<div class="rec-section"><div class="rec-section-label">General Notes</div>`;
+    if (editingGeneralNotes) {
+      html += `<textarea class="edit-field" id="field-general_notes" rows="3"
+        placeholder="Any other notes…">${escHtml(gn)}</textarea>
+        <div class="inline-edit-actions">
+          <button class="inline-save-btn" id="save-gn-btn">✓ Save</button>
+          <button class="inline-cancel-btn" id="cancel-gn-btn">Cancel</button>
+        </div>`;
+    } else {
+      html += gn
+        ? `<div id="general-notes-text" class="rec-text${isOwner ? ' rec-text-editable' : ''}" ${isOwner ? 'data-edit-gn' : ''}>${escHtml(gn)}</div>`
+        : `<span id="general-notes-text" class="rec-empty rec-text-editable" data-edit-gn>No general notes yet — click to add.</span>`;
+    }
+    html += '</div>';
   }
-  html += '</div>';
 
   const orderedCats = getSectionOrder();
   orderedCats.forEach((cat, ci) => {
     const items  = rec[cat.key] || [];
+    // Non-owners: skip sections with no items
+    if (!isOwner && items.length === 0) return;
+
     const upDis  = ci === 0 ? 'disabled' : '';
     const downDis = ci === orderedCats.length - 1 ? 'disabled' : '';
     html += `<div class="rec-section">
       <div class="rec-section-header">
         <div class="rec-section-label">${cat.label}</div>
-        <div class="section-arrows">
+        ${isOwner ? `<div class="section-arrows">
           <button class="section-arrow" data-move-section="${cat.key}" data-dir="-1" ${upDis} title="Move up">↑</button>
           <button class="section-arrow" data-move-section="${cat.key}" data-dir="1" ${downDis} title="Move down">↓</button>
-        </div>
+        </div>` : ''}
       </div>`;
     if (items.length === 0 && !inlineEditItem) {
       html += `<span class="rec-empty">No ${cat.label.toLowerCase()} items yet.</span>`;
@@ -539,15 +616,22 @@ function buildViewPanel(rec) {
       });
       html += '</div>';
     }
-    html += `<button class="add-item-btn" data-add-category="${cat.key}">+ Add ${cat.label}</button>`;
+    if (isOwner) {
+      html += `<button class="add-item-btn" data-add-category="${cat.key}">+ Add ${cat.label}</button>`;
+    }
     html += '</div>';
   });
 
-  html += `<div class="rec-section"><div class="rec-section-label">Color Palettes</div>
-    ${renderSwatchSets(rec.swatch_sets || [])}
-  </div>`;
+  const swatch_sets     = rec.swatch_sets     || [];
+  const client_swatches = rec.client_swatches || [];
+  // Non-owners: skip Color Palettes if no content
+  if (isOwner || swatch_sets.length > 0 || client_swatches.length > 0) {
+    html += `<div class="rec-section"><div class="rec-section-label">Color Palettes</div>
+      ${renderSwatchSets(swatch_sets)}
+    </div>`;
+    html += renderClientSwatches(client_swatches);
+  }
 
-  html += renderClientSwatches(rec.client_swatches || []);
   return html;
 }
 
@@ -1156,10 +1240,18 @@ function renderThread() {
   arrow.className    = 'thread-arrow' + (threadOpen ? ' open' : '');
   threadBody.className = 'thread-body' + (threadOpen ? ' open' : '');
 
+  function roleDisplayName(fromRole) {
+    if (fromRole === 'designer') return 'Builder';
+    if (fromRole === 'client')   return 'Owner';
+    if (fromRole === 'owner')    return 'Owner';
+    if (fromRole === 'builder')  return 'Builder';
+    return fromRole;
+  }
+
   messagesList.innerHTML = messages.length
     ? messages.map(m => `
         <div class="message ${m.from_role}">
-          <div class="msg-meta">${m.from_role === 'designer' ? 'Designer' : 'You'} · ${formatDate(m.created_at)}</div>
+          <div class="msg-meta">${roleDisplayName(m.from_role)} · ${formatDate(m.created_at)}</div>
           <div class="msg-text">${escHtml(m.text)}</div>
         </div>`).join('')
     : '<div style="color:var(--stone);font-size:0.85rem;font-style:italic;padding:8px 0;">No messages yet.</div>';
@@ -1192,7 +1284,7 @@ function setupThread() {
 
       const { data: msg } = await sb.from('messages').insert({
         room_id:   roomData.id,
-        from_role: 'client',
+        from_role: currentUser?.role || 'owner',
         text
       }).select().single();
 
