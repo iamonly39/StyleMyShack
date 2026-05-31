@@ -1947,3 +1947,212 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   .paint-swatches { grid-template-columns: 1fr; }
   .photo-tabs { font-size: 0.75rem; }
 }
+
+/* ─── Auth Widget ─────────────────────────────────────────────────────────── */
+.auth-widget {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.auth-email {
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+  color: var(--stone-light);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-role-badge {
+  display: inline-block;
+  font-family: system-ui, sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.18rem 0.55rem;
+  border-radius: 99px;
+}
+
+.auth-role-owner {
+  background: var(--bark);
+  color: var(--cream);
+}
+
+.auth-role-builder {
+  background: var(--bark-light);
+  color: var(--cream);
+}
+
+.auth-role-viewer {
+  background: var(--stone);
+  color: var(--cream);
+}
+
+.auth-signin-btn {
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.3rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--cream);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.auth-signin-btn:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.auth-signout-btn {
+  font-family: system-ui, sans-serif;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--stone-light);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.auth-signout-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--cream);
+}
+
+/* ─── Sign-in Modal ──────────────────────────────────────────────────────── */
+.signin-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  align-items: center;
+  justify-content: center;
+}
+
+.signin-modal-overlay.open {
+  display: flex;
+}
+
+.signin-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(30, 20, 15, 0.65);
+  backdrop-filter: blur(2px);
+}
+
+.signin-modal-card {
+  position: relative;
+  z-index: 1;
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  width: 90%;
+  max-width: 380px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+}
+
+.signin-modal-card h3 {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 1.25rem;
+  color: var(--bark-dark);
+  font-family: Georgia, serif;
+  font-weight: normal;
+  margin-bottom: 0.35rem;
+}
+
+.signin-modal-sub {
+  font-family: system-ui, sans-serif;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+  margin-bottom: 1.25rem;
+}
+
+.signin-email-input {
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: system-ui, sans-serif;
+  font-size: 1rem;
+  color: var(--text);
+  background: white;
+  margin-bottom: 0.65rem;
+  box-sizing: border-box;
+  transition: border-color var(--transition);
+}
+
+.signin-email-input:focus {
+  outline: none;
+  border-color: var(--bark-light);
+  box-shadow: 0 0 0 3px rgba(107, 79, 58, 0.1);
+}
+
+.signin-error {
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+  color: #c0392b;
+  margin-bottom: 0.65rem;
+}
+
+.signin-modal-btns {
+  display: flex;
+  gap: 0.65rem;
+}
+
+.signin-cancel-btn {
+  flex: 1;
+  padding: 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--cream);
+  color: var(--text-muted);
+  font-family: system-ui, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.signin-cancel-btn:hover {
+  background: var(--stone-light);
+}
+
+.signin-submit-btn {
+  flex: 1;
+  padding: 0.65rem;
+  border-radius: 8px;
+  border: none;
+  background: var(--bark);
+  color: var(--cream);
+  font-family: system-ui, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.signin-submit-btn:hover {
+  background: var(--bark-dark);
+}
+
+.signin-submit-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.signin-success {
+  font-family: system-ui, sans-serif;
+  font-size: 0.95rem;
+  color: #5a8a5e;
+  text-align: center;
+  padding: 0.75rem 0;
+}
