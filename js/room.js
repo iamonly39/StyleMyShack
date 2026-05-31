@@ -11,6 +11,62 @@ let inlineEditItem = null;      // { cat, idx } | null
 let editingGeneralNotes = false;
 let editingSwatch = null;       // { si, swi } | null
 
+// ─── Section Order (localStorage) ─────────────────────────────────────────
+function getSectionOrder() {
+  try {
+    const stored = localStorage.getItem('section_order_' + (roomData?.id || ''));
+    if (stored) {
+      const keys = JSON.parse(stored);
+      const sorted = [...REC_CATEGORIES].sort((a, b) => {
+        const ai = keys.indexOf(a.key), bi = keys.indexOf(b.key);
+        return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      });
+      return sorted;
+    }
+  } catch {}
+  return [...REC_CATEGORIES];
+}
+
+function moveSectionOrder(key, dir) {
+  const cats = getSectionOrder();
+  const idx  = cats.findIndex(c => c.key === key);
+  const next = idx + dir;
+  if (next < 0 || next >= cats.length) return;
+  [cats[idx], cats[next]] = [cats[next], cats[idx]];
+  localStorage.setItem('section_order_' + roomData.id, JSON.stringify(cats.map(c => c.key)));
+  renderRecommendations();
+}
+
+// ─── Color Preview Modal ───────────────────────────────────────────────────
+function openColorPreview(color, role, label) {
+  let cp = document.getElementById('color-preview');
+  if (!cp) {
+    cp = document.createElement('div');
+    cp.id = 'color-preview';
+    cp.innerHTML = `
+      <div class="color-preview-backdrop"></div>
+      <div class="color-preview-card">
+        <div class="color-preview-swatch" id="cp-swatch"></div>
+        <div class="color-preview-info">
+          <div class="color-preview-role" id="cp-role"></div>
+          <div class="color-preview-label" id="cp-label"></div>
+        </div>
+        <button class="lightbox-close" id="cp-close" title="Close">✕</button>
+      </div>`;
+    document.body.appendChild(cp);
+    cp.querySelector('.color-preview-backdrop').addEventListener('click', closeColorPreview);
+    cp.querySelector('#cp-close').addEventListener('click', closeColorPreview);
+  }
+  cp.querySelector('#cp-swatch').style.background = color;
+  cp.querySelector('#cp-role').textContent = role || '';
+  cp.querySelector('#cp-label').textContent = label || '';
+  cp.classList.add('open');
+}
+
+function closeColorPreview() {
+  document.getElementById('color-preview')?.classList.remove('open');
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────
 const REC_CATEGORIES = [
   { key: 'paint_items',     label: 'Paint',     ph: 'e.g. Benjamin Moore White Dove OC-17' },
@@ -428,6 +484,14 @@ function setupItemListeners() {
       renderRecommendations();
     });
   });
+
+  body.querySelectorAll('[data-move-section]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      gatherItemEdits();
+      gatherSwatchEdits();
+      moveSectionOrder(btn.dataset.moveSection, +btn.dataset.dir);
+    });
+  });
 }
 
 function buildViewPanel(rec) {
@@ -449,9 +513,19 @@ function buildViewPanel(rec) {
   }
   html += '</div>';
 
-  REC_CATEGORIES.forEach(cat => {
-    const items = rec[cat.key] || [];
-    html += `<div class="rec-section"><div class="rec-section-label">${cat.label}</div>`;
+  const orderedCats = getSectionOrder();
+  orderedCats.forEach((cat, ci) => {
+    const items  = rec[cat.key] || [];
+    const upDis  = ci === 0 ? 'disabled' : '';
+    const downDis = ci === orderedCats.length - 1 ? 'disabled' : '';
+    html += `<div class="rec-section">
+      <div class="rec-section-header">
+        <div class="rec-section-label">${cat.label}</div>
+        <div class="section-arrows">
+          <button class="section-arrow" data-move-section="${cat.key}" data-dir="-1" ${upDis} title="Move up">↑</button>
+          <button class="section-arrow" data-move-section="${cat.key}" data-dir="1" ${downDis} title="Move down">↓</button>
+        </div>
+      </div>`;
     if (items.length === 0 && !inlineEditItem) {
       html += `<span class="rec-empty">No ${cat.label.toLowerCase()} items yet.</span>`;
     } else {
@@ -485,9 +559,18 @@ function buildEditForm(rec) {
       placeholder="Any other notes…">${escHtml(rec.general_notes || '')}</textarea>
   </div>`;
 
-  REC_CATEGORIES.forEach(cat => {
-    const items = rec[cat.key] || [];
-    html += `<div class="rec-section"><div class="rec-section-label">${cat.label}</div>
+  getSectionOrder().forEach((cat, ci, arr) => {
+    const items   = rec[cat.key] || [];
+    const upDis   = ci === 0 ? 'disabled' : '';
+    const downDis = ci === arr.length - 1 ? 'disabled' : '';
+    html += `<div class="rec-section">
+      <div class="rec-section-header">
+        <div class="rec-section-label">${cat.label}</div>
+        <div class="section-arrows">
+          <button class="section-arrow" data-move-section="${cat.key}" data-dir="-1" ${upDis} title="Move up">↑</button>
+          <button class="section-arrow" data-move-section="${cat.key}" data-dir="1" ${downDis} title="Move down">↓</button>
+        </div>
+      </div>
       <div class="items-edit-list">`;
     items.forEach((item, idx) => {
       html += renderItemEditRow(item, cat.key, idx, cat.ph);
@@ -745,10 +828,15 @@ function setupSwatchSetListeners() {
     });
   });
 
-  // Open inline swatch editor — toggle on repeated click
+  // Swatch chip tap — preview in view mode, inline editor in edit mode
   body.querySelectorAll('[data-open-swatch]').forEach(btn => {
     btn.addEventListener('click', () => {
       const [si, swi] = btn.dataset.openSwatch.split('-').map(Number);
+      if (!editMode) {
+        const sw = roomData.recommendations.swatch_sets[si]?.swatches[swi];
+        if (sw) openColorPreview(sw.color || '#ccc', sw.role || '', sw.label || '');
+        return;
+      }
       if (editingSwatch && editingSwatch.si === si && editingSwatch.swi === swi) {
         editingSwatch = null;
       } else {
@@ -908,7 +996,7 @@ async function saveRecommendations() {
 // ─── Edit Toggle ──────────────────────────────────────────────────────────
 function setupEditToggle() {
   document.getElementById('edit-toggle').addEventListener('click', () => {
-    if (editMode) exitEditMode(); else enterEditMode();
+    if (editMode) saveRecommendations(); else enterEditMode();
   });
 }
 
@@ -1016,6 +1104,12 @@ function setupInlineEditListeners() {
       renderRecommendations();
     });
   }
+
+  body.querySelectorAll('[data-move-section]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      moveSectionOrder(btn.dataset.moveSection, +btn.dataset.dir);
+    });
+  });
 }
 
 function enterEditMode() {
