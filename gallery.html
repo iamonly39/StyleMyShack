@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gallery — StyleMyShack</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="logo">Style<span>MyShack</span></a>
+      <a href="gallery.html" class="header-nav-link active">Gallery</a>
+    </div>
+  </header>
+
+  <section class="page-hero">
+    <div class="container">
+      <h1>Gallery</h1>
+      <p>Photos from the cabin, room by room.</p>
+    </div>
+  </section>
+
+  <section class="gallery-page">
+    <div class="container">
+      <div class="gallery-filter-strip" id="gallery-filter-strip"></div>
+      <div class="gallery-grid" id="gallery-grid"></div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <p>StyleMyShack &mdash; Interior design, room by room.</p>
+  </footer>
+
+  <div class="save-banner" id="save-banner"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/gallery.js"></script>
+</body>
+</html>

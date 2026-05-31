@@ -2280,4 +2280,20 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 .builder-promote-btn:hover { opacity: 0.85; }
 .builder-in-gallery { font-size: 0.75rem; color: var(--sage); font-weight: 600; }
 .builder-caption-input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.875rem; margin-top: 0.5rem; box-sizing: border-box; }
+
+/* ─── Gallery Page ──────────────────────────────────────────────── */
+.gallery-page { padding: 1.5rem 0 3rem; }
+.gallery-page .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+.gallery-filter-strip { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.gallery-filter-btn { padding: 0.35rem 0.9rem; border: 1px solid var(--border); border-radius: 20px; background: transparent; color: var(--bark); font-size: 0.85rem; cursor: pointer; transition: var(--transition); }
+.gallery-filter-btn:hover, .gallery-filter-btn.gallery-filter-active { background: var(--bark); color: var(--cream); border-color: var(--bark); }
+.gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+.gallery-photo-card { background: var(--cream); border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
+.gallery-photo-card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; cursor: pointer; display: block; }
+.gallery-card-body { padding: 0.5rem 0.75rem 0.6rem; }
+.gallery-card-room { font-size: 0.8rem; font-weight: 600; color: var(--bark); }
+.gallery-card-caption { font-size: 0.75rem; color: var(--stone); margin-top: 0.2rem; }
+.gallery-remove-btn { font-size: 0.7rem; color: var(--stone); background: none; border: none; cursor: pointer; padding: 0; margin-top: 0.25rem; text-decoration: underline; }
+.gallery-remove-btn:hover { color: var(--bark); }
+.gallery-empty { color: var(--stone); font-style: italic; padding: 2rem 0; }
 .builder-updates-placeholder { color: var(--stone); font-size: 0.875rem; font-style: italic; padding: 0.5rem 0; }
