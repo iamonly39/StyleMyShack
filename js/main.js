@@ -133,6 +133,24 @@ async function init() {
     });
   }
 
+  // Manage team button (owner only)
+  if (user?.role === 'owner') {
+    const h2 = document.querySelector('.rooms-section h2');
+    if (h2) {
+      const headerRow = document.createElement('div');
+      headerRow.className = 'rooms-section-header';
+      h2.parentElement.insertBefore(headerRow, h2);
+      headerRow.appendChild(h2);
+
+      const manageBtn = document.createElement('button');
+      manageBtn.id = 'manage-team-btn';
+      manageBtn.className = 'manage-team-btn';
+      manageBtn.textContent = 'Manage team';
+      manageBtn.addEventListener('click', openManageTeamModal);
+      headerRow.appendChild(manageBtn);
+    }
+  }
+
   // Home carousel
   const photos = (sitePhotosRes.data || []).map(row => ({
     ...row,
@@ -323,6 +341,139 @@ function setupSitePhotoUpload() {
     startHomeTimer();
     showBanner('Uploaded!');
   });
+}
+
+// ─── Manage Team Modal ────────────────────────────────────────────────────
+function openManageTeamModal() {
+  let modal = document.getElementById('manage-team-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'manage-team-modal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal-backdrop" id="manage-team-backdrop"></div>
+      <div class="modal manage-team-modal-card">
+        <h3>Team Access</h3>
+        <p class="modal-hint">Builders can upload progress photos and participate in room threads.</p>
+        <div id="builder-list" class="builder-list"></div>
+        <div class="manage-team-add-row">
+          <input type="email" id="builder-email-input" placeholder="builder@email.com" />
+          <button id="builder-add-btn" class="btn-primary-small">Add</button>
+        </div>
+        <div id="builder-error" class="modal-error"></div>
+        <div class="manage-team-close-row">
+          <button id="manage-team-close" class="auth-btn-secondary">Close</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    modal.querySelector('#manage-team-backdrop').addEventListener('click', closeManageTeamModal);
+    modal.querySelector('#manage-team-close').addEventListener('click', closeManageTeamModal);
+
+    modal.querySelector('#builder-add-btn').addEventListener('click', addBuilder);
+    modal.querySelector('#builder-email-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') addBuilder();
+    });
+  }
+
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  loadBuilderList();
+}
+
+function closeManageTeamModal() {
+  const modal = document.getElementById('manage-team-modal');
+  if (modal) modal.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function loadBuilderList() {
+  const listEl = document.getElementById('builder-list');
+  if (!listEl) return;
+
+  listEl.innerHTML = '<p style="font-family:system-ui;font-size:0.85rem;color:var(--text-muted)">Loading…</p>';
+
+  const { data, error } = await sb.from('user_roles')
+    .select('*')
+    .eq('role', 'builder')
+    .order('created_at');
+
+  if (error) {
+    listEl.innerHTML = '<p style="font-family:system-ui;font-size:0.85rem;color:#c0392b">Could not load builders.</p>';
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    listEl.innerHTML = '<p class="rec-empty">No builders added yet.</p>';
+    return;
+  }
+
+  listEl.innerHTML = data.map(row => `
+    <div class="builder-row">
+      <span class="builder-email">${escapeHtml(row.email)}</span>
+      <button class="btn-danger-tiny" data-remove-builder="${escapeHtml(row.email)}" title="Remove">✕</button>
+    </div>`).join('');
+
+  listEl.querySelectorAll('[data-remove-builder]').forEach(btn => {
+    btn.addEventListener('click', () => removeBuilder(btn.dataset.removeBuilder));
+  });
+}
+
+async function addBuilder() {
+  const input = document.getElementById('builder-email-input');
+  const errorEl = document.getElementById('builder-error');
+  if (!input || !errorEl) return;
+
+  const email = input.value.trim().toLowerCase();
+  errorEl.style.display = 'none';
+  errorEl.textContent = '';
+
+  if (!email) return;
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    errorEl.textContent = 'Please enter a valid email address.';
+    errorEl.style.display = '';
+    return;
+  }
+
+  const { error } = await sb.from('user_roles').insert({ email, role: 'builder' });
+  if (error) {
+    if (error.code === '23505') {
+      errorEl.textContent = 'That email is already a builder.';
+    } else {
+      errorEl.textContent = 'Failed to add builder — try again.';
+    }
+    errorEl.style.display = '';
+    return;
+  }
+
+  input.value = '';
+  loadBuilderList();
+}
+
+async function removeBuilder(email) {
+  const errorEl = document.getElementById('builder-error');
+  if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+
+  const { error } = await sb.from('user_roles').delete().eq('email', email).eq('role', 'builder');
+  if (error) {
+    if (errorEl) {
+      errorEl.textContent = 'Failed to remove builder — try again.';
+      errorEl.style.display = '';
+    }
+    return;
+  }
+
+  loadBuilderList();
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 // ─── Lightbox ─────────────────────────────────────────────────────────────

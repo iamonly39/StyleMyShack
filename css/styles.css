@@ -2158,3 +2158,101 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   text-align: center;
   padding: 0.75rem 0;
 }
+
+/* ─── Manage Team ─────────────────────────────────────────────────────────── */
+.rooms-section-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.rooms-section-header h2 {
+  margin-bottom: 0;
+}
+
+.manage-team-btn {
+  font-family: system-ui, sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--cream);
+  color: var(--bark);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
+  white-space: nowrap;
+}
+
+.manage-team-btn:hover {
+  background: #ece7df;
+  border-color: var(--bark-light);
+}
+
+.manage-team-modal-card {
+  max-width: 420px !important;
+}
+
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+}
+
+.builder-list {
+  margin-bottom: 1rem;
+}
+
+.builder-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.builder-row:last-child {
+  border-bottom: none;
+}
+
+.builder-email {
+  font-family: system-ui, sans-serif;
+  font-size: 0.9rem;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.manage-team-add-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  align-items: flex-start;
+}
+
+.manage-team-add-row input {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.manage-team-close-row {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.auth-btn-secondary {
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.45rem 1rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--cream);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.auth-btn-secondary:hover {
+  background: #ece7df;
+}
