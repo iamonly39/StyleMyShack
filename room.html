@@ -114,6 +114,21 @@
 
         </div>
 
+        <!-- Builder Updates -->
+        <div class="builder-updates-section" id="builder-updates-section" style="display:none">
+          <h3 class="builder-updates-title">Builder Updates</h3>
+          <div class="builder-updates-grid" id="builder-updates-grid">
+            <!-- populated by room.js -->
+          </div>
+          <div class="builder-updates-upload" id="builder-updates-upload" style="display:none">
+            <label class="photo-upload-btn" for="builder-update-file">
+              + Add Update Photo
+              <input type="file" id="builder-update-file" accept="image/*" multiple class="hidden-input" />
+            </label>
+            <input type="text" id="builder-update-caption" class="builder-caption-input" placeholder="Caption (optional)" />
+          </div>
+        </div>
+
         <!-- Thread / Messages -->
         <div class="thread-section">
           <button class="thread-toggle" id="thread-toggle">

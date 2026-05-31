@@ -10,6 +10,7 @@ let draftMessage = '';
 let inlineEditItem = null;      // { cat, idx } | null
 let editingGeneralNotes = false;
 let editingSwatch = null;       // { si, swi } | null
+let builderUpdates = [];
 
 // ─── Section Order (localStorage) ─────────────────────────────────────────
 function getSectionOrder() {
@@ -251,6 +252,10 @@ async function init() {
 
   // Update tab labels with photo counts
   updateTabCounts(roomId);
+
+  if (currentUser?.role === 'owner' || currentUser?.role === 'builder') {
+    await loadBuilderUpdates();
+  }
 }
 
 // ─── Tab Photo Counts ─────────────────────────────────────────────────────
@@ -1349,6 +1354,125 @@ function escHtml(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
+}
+
+// ─── Builder Updates ──────────────────────────────────────────────────────
+async function loadBuilderUpdates() {
+  const { data, error } = await sb.from('builder_updates')
+    .select('*')
+    .eq('room_id', roomData.id)
+    .order('created_at', { ascending: false });
+
+  builderUpdates = error ? [] : (data || []);
+
+  document.getElementById('builder-updates-section').style.display = '';
+
+  const canUpload = currentUser?.role === 'owner' || currentUser?.role === 'builder';
+  if (canUpload) {
+    document.getElementById('builder-updates-upload').style.display = '';
+  }
+
+  renderBuilderUpdates();
+  setupBuilderUpdateUpload();
+}
+
+function renderBuilderUpdates() {
+  const grid = document.getElementById('builder-updates-grid');
+  if (!builderUpdates.length) {
+    grid.innerHTML = '<p class="builder-updates-placeholder">No builder updates yet.</p>';
+    return;
+  }
+
+  const isOwner = currentUser?.role === 'owner';
+  grid.innerHTML = builderUpdates.map(item => {
+    const url = sb.storage.from('room-photos').getPublicUrl(item.storage_path).data.publicUrl;
+    const caption = item.caption ? `<p class="builder-update-caption">${escHtml(item.caption)}</p>` : '';
+    const meta = `<p class="builder-update-meta">${escHtml(item.uploaded_by)} &middot; ${formatDate(item.created_at)}</p>`;
+    let action = '';
+    if (isOwner) {
+      action = item.promoted_to_gallery
+        ? '<span class="builder-in-gallery">In Gallery ✓</span>'
+        : `<button class="builder-promote-btn" data-id="${escHtml(item.id)}">Promote to Gallery</button>`;
+    }
+    return `
+      <div class="builder-update-card">
+        <img class="builder-update-img" src="${escHtml(url)}" alt="${escHtml(item.caption || 'Builder update')}" data-url="${escHtml(url)}" />
+        <div class="builder-update-body">
+          ${caption}
+          ${meta}
+          ${action}
+        </div>
+      </div>`;
+  }).join('');
+
+  grid.querySelectorAll('.builder-update-img').forEach(img => {
+    img.addEventListener('click', () => openLightbox(img.dataset.url));
+  });
+
+  if (isOwner) {
+    grid.querySelectorAll('.builder-promote-btn').forEach(btn => {
+      btn.addEventListener('click', () => promoteBuilderUpdate(btn.dataset.id));
+    });
+  }
+}
+
+function setupBuilderUpdateUpload() {
+  const fileInput = document.getElementById('builder-update-file');
+  if (!fileInput || fileInput.dataset.listenerAttached) return;
+  fileInput.dataset.listenerAttached = 'true';
+
+  fileInput.addEventListener('change', async () => {
+    const files = Array.from(fileInput.files);
+    if (!files.length) return;
+
+    const caption = document.getElementById('builder-update-caption').value.trim();
+    fileInput.disabled = true;
+
+    for (const file of files) {
+      const path = `${roomData.id}/builder-updates/${Date.now()}-${file.name}`;
+      const { error: upErr } = await sb.storage.from('room-photos').upload(path, file);
+      if (upErr) {
+        showBanner('Upload failed — try again.');
+        fileInput.disabled = false;
+        fileInput.value = '';
+        return;
+      }
+      const { error: insErr } = await sb.from('builder_updates').insert({
+        room_id:    roomData.id,
+        storage_path: path,
+        caption:    caption,
+        uploaded_by: currentUser.email
+      });
+      if (insErr) {
+        showBanner('Upload failed — try again.');
+        fileInput.disabled = false;
+        fileInput.value = '';
+        return;
+      }
+    }
+
+    document.getElementById('builder-update-caption').value = '';
+    fileInput.disabled = false;
+    fileInput.value = '';
+    showBanner('Update uploaded!');
+    await loadBuilderUpdates();
+  });
+}
+
+async function promoteBuilderUpdate(id) {
+  const { error } = await sb.from('builder_updates')
+    .update({ promoted_to_gallery: true })
+    .eq('id', id);
+
+  if (error) {
+    showBanner('Failed — try again.');
+    return;
+  }
+
+  const entry = builderUpdates.find(u => u.id === id);
+  if (entry) entry.promoted_to_gallery = true;
+  renderBuilderUpdates();
+  showBanner('Added to gallery!');
 }
 
 setupTabs();
