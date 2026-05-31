@@ -57,28 +57,69 @@ INSERT INTO recommendations (room_id) VALUES
   ('living-room'), ('kitchen'), ('bedroom'), ('bathroom')
 ON CONFLICT DO NOTHING;
 
+-- ─── Migration: prototype features ───────────────────────────────────────────
+ALTER TABLE rooms ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'not-started'
+  CHECK (status IN ('complete', 'in-progress', 'not-started'));
+
+-- Expand photos tab constraint to include 'inspiration'
+ALTER TABLE photos DROP CONSTRAINT IF EXISTS photos_tab_check;
+ALTER TABLE photos ADD CONSTRAINT photos_tab_check
+  CHECK (tab IN ('actual', 'model3d', 'floorPlan', 'inspiration'));
+
+ALTER TABLE recommendations
+  ADD COLUMN IF NOT EXISTS owner_notes     TEXT DEFAULT '',
+  ADD COLUMN IF NOT EXISTS swatch_sets     JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS client_swatches JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS reactions       JSONB DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS paint_items     JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS flooring_items  JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS lighting_items  JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS furniture_items JSONB DEFAULT '[]'::jsonb;
+
+CREATE TABLE IF NOT EXISTS site_photos (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  storage_path TEXT NOT NULL,
+  sort_order   BIGINT DEFAULT 0,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  room_id    TEXT REFERENCES rooms(id) ON DELETE CASCADE,
+  from_role  TEXT NOT NULL CHECK (from_role IN ('designer', 'client')),
+  text       TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ─── Row Level Security ───────────────────────────────────────────────────────
 ALTER TABLE settings        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rooms           ENABLE ROW LEVEL SECURITY;
 ALTER TABLE recommendations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE photos          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE site_photos     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages        ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies so this script is safe to re-run
 DROP POLICY IF EXISTS "public read settings"      ON settings;
+DROP POLICY IF EXISTS "anon all settings"         ON settings;
 DROP POLICY IF EXISTS "public read rooms"         ON rooms;
 DROP POLICY IF EXISTS "anon all recommendations"  ON recommendations;
 DROP POLICY IF EXISTS "anon all photos"           ON photos;
+DROP POLICY IF EXISTS "anon all site_photos"      ON site_photos;
+DROP POLICY IF EXISTS "anon all messages"         ON messages;
 DROP POLICY IF EXISTS "room-photos public read"   ON storage.objects;
 DROP POLICY IF EXISTS "room-photos anon upload"   ON storage.objects;
 DROP POLICY IF EXISTS "room-photos anon delete"   ON storage.objects;
 
--- Public read-only for rooms/settings
-CREATE POLICY "public read settings" ON settings        FOR SELECT USING (true);
+-- Public read-only for rooms; full access for settings (single-user tool, cabin name editable)
+CREATE POLICY "anon all settings"    ON settings        FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "public read rooms"    ON rooms           FOR SELECT USING (true);
 
--- Full access for recommendations and photos (single-user designer tool)
+-- Full access for recommendations, photos, site_photos, messages (single-user designer tool)
 CREATE POLICY "anon all recommendations" ON recommendations FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "anon all photos"          ON photos          FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "anon all site_photos"     ON site_photos     FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "anon all messages"        ON messages        FOR ALL USING (true) WITH CHECK (true);
 
 -- Storage policies
 CREATE POLICY "room-photos public read"

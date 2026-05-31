@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StyleMyShack</title>
+  <style>
+    :root {
+      --warm-bg: #f5f0eb; --card-bg: #ffffff; --text-primary: #3a3330;
+      --text-secondary: #7a7068; --accent: #b8860b; --accent-light: #daa520;
+      --border: #e0d8d0; --tag-bg: #f0e8df; --green: #5a8a5e; --green-bg: #e8f3e8;
+      --yellow: #b8860b; --yellow-bg: #fff3e0; --red-muted: #c47a6a; --red-bg: #fdf0ed;
+      --shadow: 0 2px 8px rgba(0,0,0,0.08); --radius: 8px;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Georgia, 'Times New Roman', serif; background: var(--warm-bg); color: var(--text-primary); line-height: 1.5; }
+    .sans { font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+
+    /* Header */
+    .site-header { background: var(--text-primary); color: var(--warm-bg); padding: 20px 24px; }
+    .site-header h1 { font-size: 1.4rem; font-weight: normal; letter-spacing: 0.5px; }
+    .site-header .subtitle { font-size: 0.85rem; opacity: 0.7; }
+    .container { max-width: 960px; margin: 0 auto; padding: 24px 16px; }
+
+    /* ── Home Carousel ── */
+    .home-carousel-section {
+      margin-bottom: 24px; background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);
+    }
+    .home-carousel-wrap { position: relative; width: 100%; height: 260px; background: var(--tag-bg); overflow: hidden; }
+    .home-carousel-slide {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.8s ease;
+    }
+    .home-carousel-slide.active { opacity: 1; }
+    .home-carousel-slide img { width: 100%; height: 100%; object-fit: cover; }
+    .home-carousel-empty {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; color: var(--text-secondary); text-align: center; padding: 20px;
+    }
+    .home-carousel-empty .icon { font-size: 2.5rem; margin-bottom: 8px; }
+    .home-carousel-empty p { font-size: 0.9rem; max-width: 360px; margin-bottom: 12px; }
+    .home-carousel-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px; font-size: 0.8rem;
+    }
+    .home-carousel-dots { display: flex; gap: 6px; }
+    .home-carousel-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--border); cursor: pointer;
+    }
+    .home-carousel-dot.active { background: var(--accent); }
+    .home-carousel-upload {
+      cursor: pointer; color: var(--accent); background: none; border: 1px solid var(--accent);
+      border-radius: 4px; padding: 4px 12px; font-size: 0.75rem; font-family: -apple-system, sans-serif;
+    }
+    .home-carousel-upload:hover { background: var(--yellow-bg); }
+    .home-carousel-counter { font-size: 0.75rem; color: var(--text-secondary); font-family: -apple-system, sans-serif; }
+
+    /* ── Room Cards ── */
+    .rooms-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .room-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; box-shadow: var(--shadow); transition: box-shadow 0.2s; }
+    .room-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+    .room-card-img { width: 100%; height: 160px; background: var(--tag-bg); display: flex; align-items: center; justify-content: center; font-size: 3rem; overflow: hidden; }
+    .room-card-img img { width: 100%; height: 100%; object-fit: cover; }
+    .room-card-body { padding: 14px 16px; }
+    .room-card-body h3 { font-size: 1.1rem; margin-bottom: 4px; font-weight: 600; }
+    .room-card-body p { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 10px; }
+    .status-badge { display: inline-block; font-size: 0.75rem; padding: 3px 10px; border-radius: 12px; font-family: -apple-system, sans-serif; }
+    .status-badge.complete { background: var(--green-bg); color: var(--green); }
+    .status-badge.in-progress { background: var(--yellow-bg); color: var(--yellow); }
+    .status-badge.not-started { background: #f5f0f0; color: var(--text-secondary); }
+
+    /* ── Room Nav Strip ── */
+    .room-nav-strip {
+      display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 12px 0;
+      margin-bottom: 12px; scrollbar-width: thin;
+    }
+    .room-nav-strip::-webkit-scrollbar { height: 4px; }
+    .room-nav-strip::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .room-nav-item {
+      flex-shrink: 0; width: 90px; cursor: pointer; text-align: center;
+      border-radius: var(--radius); padding: 6px; border: 2px solid transparent;
+      transition: border-color 0.15s; background: var(--card-bg);
+    }
+    .room-nav-item:hover { border-color: var(--border); }
+    .room-nav-item.active { border-color: var(--accent); }
+    .room-nav-thumb {
+      width: 100%; height: 50px; border-radius: 4px; background: var(--tag-bg);
+      display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+      overflow: hidden; margin-bottom: 4px;
+    }
+    .room-nav-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .room-nav-label {
+      font-size: 0.65rem; font-family: -apple-system, sans-serif;
+      color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .room-nav-item.active .room-nav-label { color: var(--accent); font-weight: 600; }
+
+    /* ── Detail ── */
+    .room-detail { display: none; }
+    .room-detail.active { display: block; }
+    .rooms-home.hidden { display: none; }
+    .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9rem; color: var(--text-secondary); text-decoration: none; margin-bottom: 12px; cursor: pointer; font-family: -apple-system, sans-serif; }
+    .back-link:hover { color: var(--text-primary); }
+    .room-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .room-header .emoji { font-size: 2rem; }
+    .room-header h2 { font-size: 1.5rem; }
+    .detail-layout { display: grid; grid-template-columns: 1fr; gap: 24px; }
+    @media (min-width: 700px) { .detail-layout { grid-template-columns: 1fr 1fr; } }
+    .section-label { font-size: 0.9rem; font-weight: 600; margin-bottom: 12px; }
+
+    /* Tabs */
+    .tabs { display: flex; border-bottom: 2px solid var(--border); margin-bottom: 12px; font-family: -apple-system, sans-serif; }
+    .tab { padding: 10px 18px; font-size: 0.85rem; cursor: pointer; border: none; border-bottom: 2px solid transparent; margin-bottom: -2px; color: var(--text-secondary); background: none; font-family: inherit; }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+    .tab:hover:not(.active) { color: var(--text-primary); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Photos */
+    .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px; }
+    .photo-thumb {
+      aspect-ratio: 4/3; background: #d8d0c6; border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden; position: relative;
+    }
+    .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-thumb-remove {
+      position: absolute; top: 4px; right: 4px; width: 20px; height: 20px;
+      border-radius: 50%; background: rgba(0,0,0,0.5); color: white;
+      border: none; cursor: pointer; font-size: 0.7rem; display: flex;
+      align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s;
+    }
+    .photo-thumb:hover .photo-thumb-remove { opacity: 1; }
+    .photo-thumb-pin {
+      position: absolute; top: 4px; left: 4px; width: 22px; height: 22px;
+      border-radius: 50%; background: rgba(0,0,0,0.4); color: white;
+      border: none; cursor: pointer; font-size: 0.65rem; display: flex;
+      align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s;
+    }
+    .photo-thumb:hover .photo-thumb-pin { opacity: 1; }
+    .photo-thumb-pin.pinned { opacity: 1; background: var(--accent); }
+    .photo-thumb.is-pinned { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .photo-upload-btn {
+      aspect-ratio: 4/3; background: var(--tag-bg); border: 2px dashed var(--border);
+      border-radius: var(--radius); display: flex; flex-direction: column;
+      align-items: center; justify-content: center; color: var(--text-secondary);
+      font-size: 0.75rem; cursor: pointer; font-family: -apple-system, sans-serif;
+      transition: border-color 0.2s;
+    }
+    .photo-upload-btn:hover { border-color: var(--accent); color: var(--text-primary); }
+    .photo-upload-btn .icon { font-size: 1.5rem; margin-bottom: 2px; }
+
+    /* Recs Panel */
+    .recs-panel { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); }
+    .recs-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    .recs-panel-header h3 { font-size: 1.1rem; }
+    .btn { padding: 7px 16px; border: none; border-radius: 6px; font-size: 0.8rem; cursor: pointer; font-family: -apple-system, sans-serif; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-light); }
+    .btn-secondary { background: var(--tag-bg); color: var(--text-primary); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: var(--border); }
+    .btn-small { padding: 4px 12px; font-size: 0.75rem; }
+    .btn-danger { background: none; color: var(--red-muted); border: 1px solid var(--red-muted); padding: 3px 10px; font-size: 0.7rem; border-radius: 4px; cursor: pointer; font-family: -apple-system, sans-serif; }
+    .btn-danger:hover { background: var(--red-bg); }
+
+    .rec-field { margin-bottom: 18px; }
+    .rec-field label { display: block; font-size: 0.8rem; font-family: -apple-system, sans-serif; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .rec-value { font-size: 0.9rem; line-height: 1.6; }
+    .rec-value.empty { color: var(--text-secondary); font-style: italic; font-size: 0.85rem; }
+    .rec-field textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-family: Georgia, serif; font-size: 0.9rem; color: var(--text-primary); background: var(--warm-bg); resize: vertical; min-height: 70px; }
+    .rec-field textarea:focus { outline: none; border-color: var(--accent); }
+
+    /* Reactions */
+    .reaction-strip { display: flex; gap: 6px; margin-top: 6px; }
+    .reaction-btn { padding: 3px 10px; border-radius: 14px; font-size: 0.7rem; border: 1px solid var(--border); background: var(--card-bg); cursor: pointer; font-family: -apple-system, sans-serif; color: var(--text-secondary); transition: all 0.15s; }
+    .reaction-btn:hover { border-color: var(--text-secondary); }
+    .reaction-btn.selected-love { background: var(--green-bg); color: var(--green); border-color: var(--green); }
+    .reaction-btn.selected-discuss { background: var(--yellow-bg); color: var(--yellow); border-color: var(--yellow); }
+    .reaction-btn.selected-unsure { background: var(--red-bg); color: var(--red-muted); border-color: var(--red-muted); }
+
+    /* Swatch sets */
+    .swatch-sets-area { margin-top: 4px; }
+    .swatch-set { margin-bottom: 16px; padding: 12px; background: var(--warm-bg); border-radius: var(--radius); border: 1px solid var(--border); }
+    .swatch-set-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .swatch-set-name { font-size: 0.85rem; font-weight: 600; font-family: -apple-system, sans-serif; }
+    .swatch-set-name-input { font-size: 0.85rem; font-weight: 600; font-family: -apple-system, sans-serif; border: 1px solid var(--border); border-radius: 4px; padding: 3px 8px; background: var(--card-bg); width: 160px; }
+    .swatch-set-name-input:focus { outline: none; border-color: var(--accent); }
+    .swatch-slot { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .swatch-circle { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; border: 2px solid var(--card-bg); box-shadow: 0 0 0 1px var(--border); }
+    .swatch-circle-input { width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0; border: 1px solid var(--border); cursor: pointer; padding: 0; background: none; overflow: hidden; }
+    .swatch-circle-input::-webkit-color-swatch-wrapper { padding: 0; }
+    .swatch-circle-input::-webkit-color-swatch { border: none; border-radius: 50%; }
+    .swatch-role { font-size: 0.8rem; color: var(--text-secondary); font-family: -apple-system, sans-serif; }
+    .swatch-color-label { font-size: 0.8rem; color: var(--text-primary); }
+    .swatch-role-input { font-size: 0.8rem; font-family: -apple-system, sans-serif; border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; width: 70px; background: var(--card-bg); }
+    .swatch-role-input:focus { outline: none; border-color: var(--accent); }
+    .swatch-color-label-input { font-size: 0.8rem; border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; flex: 1; background: var(--card-bg); }
+    .swatch-color-label-input:focus { outline: none; border-color: var(--accent); }
+    .swatch-slot-remove { font-size: 0.7rem; color: var(--red-muted); cursor: pointer; background: none; border: none; font-family: -apple-system, sans-serif; padding: 2px 6px; }
+    .swatch-slot-remove:hover { color: var(--text-primary); }
+    .swatch-set-actions { display: flex; gap: 8px; margin-top: 8px; }
+    .add-set-btn { display: flex; align-items: center; gap: 4px; font-size: 0.8rem; color: var(--accent); cursor: pointer; background: none; border: 1px dashed var(--accent); border-radius: 6px; padding: 6px 14px; font-family: -apple-system, sans-serif; }
+    .add-set-btn:hover { background: var(--yellow-bg); }
+
+    /* Client swatches */
+    .client-swatches-section { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .section-sub-label { font-size: 0.8rem; font-family: -apple-system, sans-serif; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .swatches-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .swatch-flat { width: 40px; height: 40px; border-radius: 50%; border: 3px solid var(--card-bg); box-shadow: 0 0 0 1px var(--border); position: relative; }
+    .swatch-flat .swatch-label { display: none; position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 0.65rem; white-space: nowrap; color: var(--text-secondary); font-family: -apple-system, sans-serif; }
+    .swatch-flat:hover .swatch-label { display: block; }
+    .swatch-removable { cursor: pointer; }
+    .swatch-removable:hover { box-shadow: 0 0 0 2px var(--red-muted); }
+    .add-swatch-btn { width: 40px; height: 40px; border-radius: 50%; border: 2px dashed var(--border); background: var(--tag-bg); display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.1rem; color: var(--text-secondary); }
+    .add-swatch-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .swatch-picker { display: none; margin-top: 10px; padding: 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+    .swatch-picker.open { display: block; }
+    .swatch-picker-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+    .swatch-picker-row input[type="color"] { width: 44px; height: 36px; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: none; padding: 2px; }
+    .swatch-picker-row input[type="text"] { flex: 1; min-width: 120px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.85rem; font-family: -apple-system, sans-serif; }
+    .swatch-picker-row input[type="text"]:focus { outline: none; border-color: var(--accent); }
+
+    /* Thread */
+    .thread-section { margin-top: 28px; grid-column: 1 / -1; }
+    .thread-toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 12px 16px; background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); width: 100%; font-family: -apple-system, sans-serif; font-size: 0.9rem; color: var(--text-primary); text-align: left; }
+    .thread-toggle:hover { background: var(--tag-bg); }
+    .thread-toggle .arrow { transition: transform 0.2s; font-size: 0.7rem; color: var(--text-secondary); }
+    .thread-toggle .arrow.open { transform: rotate(90deg); }
+    .thread-toggle .count { margin-left: auto; font-size: 0.75rem; color: var(--text-secondary); }
+    .thread-body { display: none; background: var(--card-bg); border: 1px solid var(--border); border-top: none; border-radius: 0 0 var(--radius) var(--radius); padding: 16px; box-shadow: var(--shadow); }
+    .thread-body.open { display: block; }
+    .message { padding: 10px 14px; margin-bottom: 10px; border-radius: var(--radius); font-size: 0.85rem; line-height: 1.5; }
+    .message.designer { background: var(--tag-bg); margin-right: 40px; }
+    .message.client { background: #e8eff5; margin-left: 40px; }
+    .message .msg-meta { font-size: 0.7rem; color: var(--text-secondary); font-family: -apple-system, sans-serif; margin-bottom: 4px; }
+    .thread-compose { margin-top: 10px; display: flex; gap: 8px; }
+    .thread-compose textarea { flex: 1; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-family: Georgia, serif; font-size: 0.85rem; resize: none; min-height: 42px; color: var(--text-primary); }
+    .thread-compose textarea:focus { outline: none; border-color: var(--accent); }
+    .thread-compose button { align-self: flex-end; }
+    .draft-indicator { font-size: 0.7rem; color: var(--yellow); font-family: -apple-system, sans-serif; margin-bottom: 4px; font-style: italic; }
+
+    .save-bar { margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .save-toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text-primary); color: var(--warm-bg); padding: 10px 24px; border-radius: 6px; font-size: 0.85rem; font-family: -apple-system, sans-serif; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 10; }
+    .save-toast.show { opacity: 1; }
+
+    /* Hidden file input */
+    .hidden-input { display: none; }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <div>
+    <h1>StyleMyShack</h1>
+    <div class="subtitle">Interior Design Recommendations</div>
+  </div>
+</header>
+
+<div class="container rooms-home" id="roomsHome">
+  <div id="homeCarousel"></div>
+  <div class="rooms-grid" id="roomsGrid"></div>
+</div>
+
+<div class="container room-detail" id="roomDetail">
+  <a class="back-link" id="backLink">&#8592; All Rooms</a>
+  <div id="roomNavStrip"></div>
+  <div class="room-header" id="roomHeader"></div>
+  <div class="detail-layout" id="detailLayout"></div>
+</div>
+
+<div class="save-toast" id="saveToast">Saved</div>
+<input type="file" accept="image/*" multiple class="hidden-input" id="fileInput">
+
+<script>
+// ── Defaults ──
+const DEFAULT_ROLES = { kitchen: ['Wall','Trim','Cabinet'], _default: ['Wall','Trim','Accent'] };
+function getDefaultRoles(id) { return DEFAULT_ROLES[id] || DEFAULT_ROLES._default; }
+function makeDefaultSet(id, name) {
+  return { name: name || 'Palette A', swatches: getDefaultRoles(id).map(r => ({ role: r, color: '#CCCCCC', label: '' })) };
+}
+
+// ── Site-wide photos (home carousel) ──
+let sitePhotos = []; // array of data URLs
+
+// ── Data ──
+const ROOMS = [
+  {
+    id: 'living-room', name: 'Living Room', emoji: '🛋️',
+    description: 'Main gathering space with stone fireplace', sort_order: 1, status: 'complete',
+    recommendations: {
+      paint_notes: 'Warm white (Benjamin Moore "White Dove OC-17") on walls. Accent wall behind fireplace in "Revere Pewter HC-172".',
+      flooring: 'Keep existing hardwood. Add 8x10 jute area rug under seating area.',
+      lighting: 'Replace overhead with 2 table lamps (warm 2700K). Add floor lamp near reading chair.',
+      furniture: 'Reupholster sofa in oatmeal linen. Add two leather accent chairs. Replace coffee table with round wood slab.',
+      general_notes: 'Goal: cozy but not cluttered. Let the fireplace be the focal point.',
+      swatchSets: [
+        { name: 'Primary Palette', swatches: [
+          { role: 'Wall', color: '#E8E0D4', label: 'White Dove OC-17' },
+          { role: 'Trim', color: '#F5F0E8', label: 'Chantilly Lace' },
+          { role: 'Accent', color: '#B5A898', label: 'Revere Pewter HC-172' }
+        ]},
+        { name: 'Warm Alternative', swatches: [
+          { role: 'Wall', color: '#DDD0BE', label: 'Muslin OC-12' },
+          { role: 'Trim', color: '#F5F0E8', label: 'Chantilly Lace' },
+          { role: 'Accent', color: '#C4A86B', label: 'Leather accent' }
+        ]}
+      ]
+    },
+    photoData: { actual: [], model3d: [], floorPlan: [] }, pinnedPhoto: null,
+    reactions: { paint_notes: 'love', lighting: 'discuss' },
+    clientSwatches: [{ color: '#D4C5A9', label: 'Warm sand' }, { color: '#8B7355', label: 'Dark walnut' }],
+    messages: [
+      { from: 'designer', text: 'Started with the living room since it sets the tone for the whole cabin.', time: 'Mar 18' },
+      { from: 'client', text: 'Love the White Dove — can we talk about the lighting?', time: 'Mar 20' },
+      { from: 'designer', text: "We can keep the overhead. Swap bulbs to 2700K and add lamps as supplemental.", time: 'Mar 20' }
+    ]
+  },
+  {
+    id: 'kitchen', name: 'Kitchen', emoji: '🍳',
+    description: 'Galley-style kitchen with breakfast bar', sort_order: 2, status: 'in-progress',
+    recommendations: {
+      paint_notes: 'Cabinet color: "Simply White OC-117". Walls: keep current cream.',
+      flooring: 'Replace vinyl with LVP in warm oak tone.',
+      lighting: 'Under-cabinet LED strips. Pendant lights over breakfast bar.',
+      furniture: 'New bar stools — backless, wood seat, black metal legs.',
+      general_notes: '',
+      swatchSets: [{ name: 'Kitchen Palette', swatches: [
+        { role: 'Wall', color: '#F0E8DA', label: 'Existing cream' },
+        { role: 'Trim', color: '#FFFFFF', label: 'White' },
+        { role: 'Cabinet', color: '#F5F0E8', label: 'Simply White OC-117' }
+      ]}]
+    },
+    photoData: { actual: [], model3d: [], floorPlan: [] }, pinnedPhoto: null,
+    reactions: {}, clientSwatches: [], messages: []
+  },
+  {
+    id: 'master-bedroom', name: 'Master Bedroom', emoji: '🛏️',
+    description: 'Second floor, south-facing with mountain view', sort_order: 3, status: 'in-progress',
+    recommendations: {
+      paint_notes: 'Soft sage green — "Saybrook Sage HC-114".',
+      flooring: 'Carpet overlay or large rug. Consider wool in cream.',
+      lighting: 'Bedside sconces instead of table lamps to save nightstand space.',
+      furniture: '',
+      general_notes: 'Waiting on measurements for the window seat area.',
+      swatchSets: [{ name: 'Sage Direction', swatches: [
+        { role: 'Wall', color: '#B0BFA5', label: 'Saybrook Sage HC-114' },
+        { role: 'Trim', color: '#F5F0E8', label: 'Cream' },
+        { role: 'Accent', color: '#EDE8DF', label: 'Cream wool' }
+      ]}]
+    },
+    photoData: { actual: [], model3d: [], floorPlan: [] }, pinnedPhoto: null,
+    reactions: { paint_notes: 'unsure' }, clientSwatches: [], messages: []
+  },
+  {
+    id: 'guest-room', name: 'Guest Room', emoji: '🪟',
+    description: 'Small room off the hallway, currently used for storage', sort_order: 4, status: 'not-started',
+    recommendations: { paint_notes: '', flooring: '', lighting: '', furniture: '', general_notes: 'Need to clear out and photograph before planning.', swatchSets: [] },
+    photoData: { actual: [], model3d: [], floorPlan: [] }, pinnedPhoto: null,
+    reactions: {}, clientSwatches: [], messages: []
+  },
+  {
+    id: 'bathroom', name: 'Main Bathroom', emoji: '🚿',
+    description: 'Full bath on the first floor', sort_order: 5, status: 'not-started',
+    recommendations: { paint_notes: '', flooring: '', lighting: '', furniture: '', general_notes: '', swatchSets: [] },
+    photoData: { actual: [], model3d: [], floorPlan: [] }, pinnedPhoto: null,
+    reactions: {}, clientSwatches: [], messages: []
+  },
+  {
+    id: 'deck', name: 'Deck / Porch', emoji: '🌲',
+    description: 'Wraparound deck with lake view', sort_order: 6, status: 'in-progress',
+    recommendations: {
+      paint_notes: 'Stain deck boards — semi-transparent in "Cedar".',
+      flooring: 'Boards in decent shape. Sand and re-stain.',
+      lighting: 'String lights along railing. Solar path lights on stairs.',
+      furniture: 'Adirondack chairs (2). Small bistro table for morning coffee.',
+      general_notes: 'Railing needs repair in NW corner before any cosmetic work.',
+      swatchSets: [{ name: 'Deck Colors', swatches: [
+        { role: 'Wall', color: '#A0522D', label: 'Cedar stain' },
+        { role: 'Trim', color: '#8B7355', label: 'Rail tone' },
+        { role: 'Accent', color: '#6B8E6B', label: 'Foliage accent' }
+      ]}]
+    },
+    photoData: { actual: [], model3d: [], floorPlan: [] }, pinnedPhoto: null,
+    reactions: { furniture: 'love' }, clientSwatches: [], messages: []
+  }
+];
+
+const PHOTO_TABS = [{ key: 'actual', label: 'Photos' }, { key: 'model3d', label: '3D Model' }, { key: 'floorPlan', label: 'Floor Plan' }];
+const REC_FIELDS = [{ key: 'paint_notes', label: 'Paint' }, { key: 'flooring', label: 'Flooring' }, { key: 'lighting', label: 'Lighting' }, { key: 'furniture', label: 'Furniture' }, { key: 'general_notes', label: 'General Notes' }];
+const REACTION_TYPES = [{ key: 'love', emoji: '♥', label: 'Love it', cls: 'selected-love' }, { key: 'discuss', emoji: '💬', label: "Let's discuss", cls: 'selected-discuss' }, { key: 'unsure', emoji: '?', label: 'Not sure', cls: 'selected-unsure' }];
+
+let currentRoom = null, editMode = false, activePhotoTab = 'actual', threadOpen = false, draftMessage = '';
+let homeSlide = 0, homeTimer = null;
+let pendingUpload = null; // { target: 'home' | 'room', tab: string }
+
+// ── File input handler ──
+const fileInput = document.getElementById('fileInput');
+fileInput.addEventListener('change', function(e) {
+  if (!pendingUpload) return;
+  const files = Array.from(e.target.files);
+  if (!files.length) return;
+
+  let loaded = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const dataUrl = ev.target.result;
+      if (pendingUpload.target === 'home') {
+        sitePhotos.push(dataUrl);
+      } else if (pendingUpload.target === 'room' && currentRoom) {
+        currentRoom.photoData[pendingUpload.tab].push(dataUrl);
+      }
+      loaded++;
+      if (loaded === files.length) {
+        if (pendingUpload.target === 'home') {
+          renderHomeCarousel();
+        } else {
+          renderDetail();
+        }
+        pendingUpload = null;
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+  fileInput.value = '';
+});
+
+function triggerUpload(target, tab) {
+  pendingUpload = { target, tab: tab || '' };
+  fileInput.click();
+}
+
+// ── Home Carousel ──
+function renderHomeCarousel() {
+  const el = document.getElementById('homeCarousel');
+  let html = '<div class="home-carousel-section">';
+  html += '<div class="home-carousel-wrap">';
+
+  if (sitePhotos.length === 0) {
+    html += `<div class="home-carousel-slide active">
+      <div class="home-carousel-empty">
+        <div class="icon">📷</div>
+        <p>Got photos of the cabin? Add them here so the designer can see the space.</p>
+        <button class="btn btn-primary btn-small" onclick="triggerUpload('home')">Add site photos</button>
+      </div>
+    </div>`;
+  } else {
+    sitePhotos.forEach((src, i) => {
+      html += `<div class="home-carousel-slide ${i === homeSlide ? 'active' : ''}"><img src="${src}"></div>`;
+    });
+  }
+  html += '</div>';
+
+  // Bar
+  html += '<div class="home-carousel-bar">';
+  if (sitePhotos.length > 1) {
+    html += '<div class="home-carousel-dots">';
+    sitePhotos.forEach((_, i) => {
+      html += `<div class="home-carousel-dot ${i === homeSlide ? 'active' : ''}" onclick="goHomeSlide(${i})"></div>`;
+    });
+    html += '</div>';
+    html += `<span class="home-carousel-counter">${homeSlide + 1} / ${sitePhotos.length}</span>`;
+  } else if (sitePhotos.length === 1) {
+    html += '<div></div><span class="home-carousel-counter">1 photo</span>';
+  } else {
+    html += '<div></div>';
+  }
+  html += `<button class="home-carousel-upload" onclick="triggerUpload('home')">+ Add photos</button>`;
+  html += '</div></div>';
+
+  el.innerHTML = html;
+  startHomeTimer();
+}
+
+function startHomeTimer() {
+  clearInterval(homeTimer);
+  if (sitePhotos.length > 1) {
+    homeTimer = setInterval(() => {
+      homeSlide = (homeSlide + 1) % sitePhotos.length;
+      updateHomeSlides();
+    }, 4000);
+  }
+}
+
+function updateHomeSlides() {
+  const slides = document.querySelectorAll('.home-carousel-slide');
+  const dots = document.querySelectorAll('.home-carousel-dot');
+  const counter = document.querySelector('.home-carousel-counter');
+  slides.forEach((s, i) => s.classList.toggle('active', i === homeSlide));
+  dots.forEach((d, i) => d.classList.toggle('active', i === homeSlide));
+  if (counter) counter.textContent = `${homeSlide + 1} / ${sitePhotos.length}`;
+}
+
+window.goHomeSlide = function(i) {
+  homeSlide = i;
+  updateHomeSlides();
+  startHomeTimer();
+};
+
+// ── Room first photo helper ──
+function getRoomThumb(r) {
+  // If there's a pinned photo, use it
+  if (r.pinnedPhoto) {
+    const photos = r.photoData[r.pinnedPhoto.tab] || [];
+    if (photos[r.pinnedPhoto.index]) return photos[r.pinnedPhoto.index];
+  }
+  const all = [...(r.photoData.actual || []), ...(r.photoData.model3d || []), ...(r.photoData.floorPlan || [])];
+  return all.length > 0 ? all[0] : null;
+}
+
+// ── Home ──
+function renderHome() {
+  renderHomeCarousel();
+  document.getElementById('roomsGrid').innerHTML = ROOMS.map(r => {
+    const thumb = getRoomThumb(r);
+    const imgContent = thumb
+      ? `<img src="${thumb}">`
+      : r.emoji;
+    return `<div class="room-card" onclick="openRoom('${r.id}')">
+      <div class="room-card-img">${imgContent}</div>
+      <div class="room-card-body">
+        <h3>${r.name}</h3>
+        <p>${r.description}</p>
+        <span class="status-badge ${r.status}">${fmtStatus(r.status)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+function fmtStatus(s) { return s === 'complete' ? 'Complete' : s === 'in-progress' ? 'In Progress' : 'Not Started'; }
+
+// ── Room Nav Strip ──
+function renderRoomNav() {
+  const el = document.getElementById('roomNavStrip');
+  el.innerHTML = '<div class="room-nav-strip">' + ROOMS.map(r => {
+    const thumb = getRoomThumb(r);
+    const active = currentRoom && currentRoom.id === r.id ? 'active' : '';
+    const inner = thumb ? `<img src="${thumb}">` : r.emoji;
+    return `<div class="room-nav-item ${active}" onclick="openRoom('${r.id}')">
+      <div class="room-nav-thumb">${inner}</div>
+      <div class="room-nav-label">${r.name}</div>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+// ── Open Room ──
+function openRoom(id) {
+  currentRoom = ROOMS.find(r => r.id === id);
+  if (!currentRoom) return;
+  editMode = false; activePhotoTab = 'actual'; threadOpen = false; draftMessage = '';
+  clearInterval(homeTimer);
+
+  document.getElementById('roomsHome').classList.add('hidden');
+  document.getElementById('roomDetail').classList.add('active');
+
+  document.getElementById('roomHeader').innerHTML = `
+    <span class="emoji">${currentRoom.emoji}</span>
+    <div><h2>${currentRoom.name}</h2>
+    <span class="status-badge ${currentRoom.status}">${fmtStatus(currentRoom.status)}</span></div>`;
+  document.getElementById('backLink').onclick = goHome;
+
+  renderRoomNav();
+  renderDetail();
+  window.scrollTo(0, 0);
+}
+
+function goHome() {
+  document.getElementById('roomDetail').classList.remove('active');
+  document.getElementById('roomsHome').classList.remove('hidden');
+  currentRoom = null;
+  renderHome();
+}
+
+function renderDetail() {
+  const r = currentRoom;
+  let html = '';
+  html += '<div><div class="section-label">Photos</div>' + renderPhotos(r) + '</div>';
+  html += '<div><div class="section-label">Designer Recommendations</div>' + renderRecs(r) + '</div>';
+  html += renderThread(r);
+  document.getElementById('detailLayout').innerHTML = html;
+}
+
+// ── Photos (working upload) ──
+function renderPhotos(r) {
+  let html = '<div class="tabs">';
+  PHOTO_TABS.forEach(t => {
+    const c = (r.photoData[t.key] || []).length;
+    html += `<button class="tab ${t.key === activePhotoTab ? 'active' : ''}" onclick="setPhotoTab('${t.key}')">${t.label} (${c})</button>`;
+  });
+  html += '</div>';
+
+  PHOTO_TABS.forEach(t => {
+    const photos = r.photoData[t.key] || [];
+    html += `<div class="tab-content ${t.key === activePhotoTab ? 'active' : ''}"><div class="photo-grid">`;
+    photos.forEach((src, i) => {
+      const isPinned = r.pinnedPhoto && r.pinnedPhoto.tab === t.key && r.pinnedPhoto.index === i;
+      const pinnedClass = isPinned ? ' is-pinned' : '';
+      const pinBtnClass = isPinned ? ' pinned' : '';
+      const pinLabel = isPinned ? '📌' : '📌';
+      html += `<div class="photo-thumb${pinnedClass}"><img src="${src}"><button class="photo-thumb-pin${pinBtnClass}" onclick="pinPhoto('${t.key}',${i})" title="${isPinned ? 'Unpin thumbnail' : 'Set as thumbnail'}">${pinLabel}</button><button class="photo-thumb-remove" onclick="removePhoto('${t.key}',${i})">✕</button></div>`;
+    });
+    html += `<div class="photo-upload-btn" onclick="triggerUpload('room','${t.key}')"><span class="icon">+</span>Upload</div>`;
+    html += '</div></div>';
+  });
+  return html;
+}
+
+window.setPhotoTab = function(k) { activePhotoTab = k; renderDetail(); };
+window.pinPhoto = function(tab, idx) {
+  const r = currentRoom;
+  // Toggle: if already pinned, unpin
+  if (r.pinnedPhoto && r.pinnedPhoto.tab === tab && r.pinnedPhoto.index === idx) {
+    r.pinnedPhoto = null;
+  } else {
+    r.pinnedPhoto = { tab, index: idx };
+  }
+  renderDetail();
+  renderRoomNav();
+};
+window.removePhoto = function(tab, idx) {
+  const r = currentRoom;
+  // Clear pin if removing the pinned photo
+  if (r.pinnedPhoto && r.pinnedPhoto.tab === tab) {
+    if (r.pinnedPhoto.index === idx) {
+      r.pinnedPhoto = null;
+    } else if (r.pinnedPhoto.index > idx) {
+      r.pinnedPhoto.index--;
+    }
+  }
+  r.photoData[tab].splice(idx, 1);
+  renderDetail();
+  renderRoomNav();
+};
+
+// ── Recommendations ──
+function renderRecs(r) {
+  const rec = r.recommendations;
+  let html = '<div class="recs-panel">';
+  html += '<div class="recs-panel-header"><h3>Recommendations</h3>';
+  if (editMode) {
+    html += '<div style="display:flex;gap:6px;"><button class="btn btn-secondary btn-small" onclick="cancelEdit()">Cancel</button><button class="btn btn-primary btn-small" onclick="saveEdit()">Save</button></div>';
+  } else {
+    html += '<button class="btn btn-secondary btn-small" onclick="startEdit()">Edit</button>';
+  }
+  html += '</div>';
+
+  REC_FIELDS.forEach(f => {
+    const val = rec[f.key] || '';
+    html += `<div class="rec-field"><label>${f.label}</label>`;
+    if (editMode) {
+      html += `<textarea data-field="${f.key}">${esc(val)}</textarea>`;
+    } else if (val) {
+      html += `<div class="rec-value">${esc(val)}</div>` + renderReactionStrip(f.key, r.reactions[f.key]);
+    } else {
+      html += '<div class="rec-value empty">No notes yet</div>';
+    }
+    html += '</div>';
+  });
+
+  // Swatch sets
+  html += '<div class="rec-field"><label>Color Palettes</label><div class="swatch-sets-area">';
+  const sets = rec.swatchSets || [];
+  if (!sets.length && !editMode) html += '<div class="rec-value empty">No palettes yet</div>';
+
+  sets.forEach((set, si) => {
+    html += '<div class="swatch-set"><div class="swatch-set-header">';
+    if (editMode) {
+      html += `<input class="swatch-set-name-input" data-set-name="${si}" value="${esc(set.name)}">`;
+      html += `<button class="btn-danger btn-small" onclick="removeSet(${si})">Remove set</button>`;
+    } else {
+      html += `<span class="swatch-set-name">${esc(set.name)}</span>`;
+    }
+    html += '</div>';
+    set.swatches.forEach((sw, swi) => {
+      html += '<div class="swatch-slot">';
+      if (editMode) {
+        html += `<input type="color" class="swatch-circle-input" data-set="${si}" data-sw="${swi}" value="${sw.color}">`;
+        html += `<input class="swatch-role-input" data-set-role="${si}-${swi}" value="${esc(sw.role)}">`;
+        html += `<input class="swatch-color-label-input" data-set-label="${si}-${swi}" value="${esc(sw.label)}" placeholder="Color name">`;
+        html += `<button class="swatch-slot-remove" onclick="removeSwatch(${si},${swi})">✕</button>`;
+      } else {
+        html += `<div class="swatch-circle" style="background:${sw.color}"></div>`;
+        html += `<span class="swatch-role">${esc(sw.role)}</span>`;
+        if (sw.label) html += `<span class="swatch-color-label">— ${esc(sw.label)}</span>`;
+      }
+      html += '</div>';
+    });
+    if (editMode) html += `<div class="swatch-set-actions"><button class="btn btn-secondary btn-small" onclick="addSwatchToSet(${si})">+ Add swatch</button></div>`;
+    html += '</div>';
+  });
+  if (editMode) html += '<button class="add-set-btn" onclick="addNewSet()">+ Add palette set</button>';
+  html += '</div></div>';
+
+  // Client swatches
+  html += '<div class="client-swatches-section"><div class="section-sub-label">My Swatches — Colors I\'m Considering</div><div class="swatches-row">';
+  (r.clientSwatches || []).forEach((s, i) => {
+    html += `<div class="swatch-flat swatch-removable" style="background:${s.color}" onclick="removeClientSwatch(${i})" title="Click to remove"><span class="swatch-label">${esc(s.label)} ✕</span></div>`;
+  });
+  html += '<div class="add-swatch-btn" onclick="toggleSwatchPicker()">+</div></div>';
+  html += `<div class="swatch-picker" id="swatchPicker"><div class="swatch-picker-row">
+    <input type="color" id="clientSwatchColor" value="#C8B89A">
+    <input type="text" id="clientSwatchLabel" placeholder="Label (e.g. Warm Sand)">
+    <button class="btn btn-primary btn-small" onclick="addClientSwatch()">Add</button>
+  </div></div></div>`;
+
+  if (editMode) {
+    html += '<div class="save-bar"><button class="btn btn-secondary" onclick="cancelEdit()">Cancel</button><button class="btn btn-primary" onclick="saveEdit()">Save</button></div>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderReactionStrip(fk, cur) {
+  let h = '<div class="reaction-strip">';
+  REACTION_TYPES.forEach(rt => {
+    h += `<button class="reaction-btn ${cur === rt.key ? rt.cls : ''}" onclick="setReaction('${fk}','${rt.key}')">${rt.emoji} ${rt.label}</button>`;
+  });
+  return h + '</div>';
+}
+
+// ── Reactions ──
+window.setReaction = function(fk, rk) {
+  if (currentRoom.reactions[fk] === rk) { delete currentRoom.reactions[fk]; renderDetail(); return; }
+  currentRoom.reactions[fk] = rk;
+  if (rk === 'discuss') {
+    draftMessage = `Re: ${REC_FIELDS.find(f => f.key === fk)?.label || fk} — `;
+    threadOpen = true;
+  }
+  renderDetail();
+  if (rk === 'discuss') { const ta = document.getElementById('composeArea'); if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } }
+};
+
+// ── Edit ──
+window.startEdit = function() { editMode = true; renderDetail(); };
+window.cancelEdit = function() { editMode = false; renderDetail(); };
+window.saveEdit = function() {
+  REC_FIELDS.forEach(f => { const ta = document.querySelector(`textarea[data-field="${f.key}"]`); if (ta) currentRoom.recommendations[f.key] = ta.value; });
+  gatherSwatchEdits();
+  editMode = false; renderDetail(); showToast('Saved');
+};
+
+function gatherSwatchEdits() {
+  (currentRoom.recommendations.swatchSets || []).forEach((set, si) => {
+    const ni = document.querySelector(`input[data-set-name="${si}"]`); if (ni) set.name = ni.value;
+    set.swatches.forEach((sw, swi) => {
+      const ci = document.querySelector(`input[data-set="${si}"][data-sw="${swi}"]`); if (ci) sw.color = ci.value;
+      const ri = document.querySelector(`input[data-set-role="${si}-${swi}"]`); if (ri) sw.role = ri.value;
+      const li = document.querySelector(`input[data-set-label="${si}-${swi}"]`); if (li) sw.label = li.value;
+    });
+  });
+}
+
+window.addNewSet = function() { gatherSwatchEdits(); const s = currentRoom.recommendations.swatchSets; s.push(makeDefaultSet(currentRoom.id, 'Palette ' + String.fromCharCode(65 + s.length))); renderDetail(); };
+window.removeSet = function(si) { gatherSwatchEdits(); currentRoom.recommendations.swatchSets.splice(si, 1); renderDetail(); };
+window.addSwatchToSet = function(si) { gatherSwatchEdits(); currentRoom.recommendations.swatchSets[si].swatches.push({ role: 'New', color: '#CCCCCC', label: '' }); renderDetail(); };
+window.removeSwatch = function(si, swi) { gatherSwatchEdits(); currentRoom.recommendations.swatchSets[si].swatches.splice(swi, 1); renderDetail(); };
+
+// Client swatches
+window.toggleSwatchPicker = function() { document.getElementById('swatchPicker').classList.toggle('open'); };
+window.addClientSwatch = function() {
+  const c = document.getElementById('clientSwatchColor').value;
+  const l = document.getElementById('clientSwatchLabel').value.trim() || c;
+  currentRoom.clientSwatches.push({ color: c, label: l }); renderDetail();
+};
+window.removeClientSwatch = function(i) { currentRoom.clientSwatches.splice(i, 1); renderDetail(); };
+
+// ── Thread ──
+function renderThread(r) {
+  const msgs = r.messages || [];
+  let html = '<div class="thread-section">';
+  html += `<button class="thread-toggle" onclick="toggleThread()"><span class="arrow ${threadOpen ? 'open' : ''}">&#9654;</span> Messages <span class="count">${msgs.length} message${msgs.length !== 1 ? 's' : ''}</span></button>`;
+  html += `<div class="thread-body ${threadOpen ? 'open' : ''}">`;
+  if (!msgs.length) html += '<div style="color:var(--text-secondary);font-size:0.85rem;font-style:italic;padding:8px 0;">No messages yet.</div>';
+  msgs.forEach(m => {
+    const who = m.from === 'designer' ? 'designer' : 'client';
+    html += `<div class="message ${who}"><div class="msg-meta">${m.from === 'designer' ? 'Designer' : 'You'} · ${m.time}</div><div class="msg-text">${esc(m.text)}</div></div>`;
+  });
+  if (draftMessage) html += '<div class="draft-indicator">Draft from your reaction — edit before sending</div>';
+  html += `<div class="thread-compose"><textarea id="composeArea" placeholder="Write a message...">${esc(draftMessage)}</textarea><button class="btn btn-primary btn-small" onclick="sendMessage()">Send</button></div>`;
+  html += '</div></div>';
+  return html;
+}
+window.toggleThread = function() { threadOpen = !threadOpen; renderDetail(); };
+window.sendMessage = function() {
+  const ta = document.getElementById('composeArea'); const text = ta.value.trim(); if (!text) return;
+  currentRoom.messages.push({ from: 'client', text, time: 'Just now' });
+  draftMessage = ''; threadOpen = true; renderDetail(); showToast('Message sent');
+};
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function showToast(msg) { const t = document.getElementById('saveToast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 1800); }
+
+renderHome();
+</script>
+</body>
+</html>

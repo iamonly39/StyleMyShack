@@ -11,7 +11,7 @@
   <header class="site-header">
     <div class="container">
       <a href="index.html" class="header-back">&#8592; All Rooms</a>
-      <span class="logo">Style<span>MyShack</span></span>
+      <a href="index.html" class="logo">Style<span>MyShack</span></a>
     </div>
   </header>
 
@@ -22,14 +22,23 @@
     </div>
   </section>
 
-  <!-- Room Navigation Carousel -->
-  <div class="room-carousel-wrap">
+  <!-- Room Navigation Strip -->
+  <div class="room-nav-strip-wrap">
     <div class="container">
-      <div class="room-carousel" id="room-carousel">
+      <div class="room-nav-strip" id="room-nav">
         <!-- Populated by room.js -->
       </div>
     </div>
   </div>
+
+  <section class="owner-brief-section">
+    <div class="container">
+      <div class="owner-brief-block">
+        <div class="owner-brief-label">Owner's Brief</div>
+        <div class="owner-brief-text" id="owner-notes-text" data-placeholder="What are you looking for in this room? Click to add notes for the designer…"></div>
+      </div>
+    </div>
+  </section>
 
   <main>
     <div class="room-detail">
@@ -42,6 +51,7 @@
               <button class="photo-tab active" data-tab="actual">Actual Photos</button>
               <button class="photo-tab" data-tab="model3d">3D Model</button>
               <button class="photo-tab" data-tab="floorPlan">Floor Plan</button>
+              <button class="photo-tab" data-tab="inspiration">Inspiration</button>
             </div>
 
             <div class="photo-content active" id="tab-actual">
@@ -76,32 +86,23 @@
                 </label>
               </div>
             </div>
-          </div>
 
-          <!-- Benjamin Moore Swatch Panel -->
-          <div class="swatch-panel" id="swatch-panel">
-            <div class="swatch-panel-header">
-              <span class="swatch-panel-title">Benjamin Moore Colors</span>
-              <span class="swatch-panel-hint" id="swatch-hint">Select up to 4</span>
-            </div>
-
-            <!-- Color search (edit mode only) -->
-            <div class="swatch-search-wrap" id="swatch-search-wrap" style="display:none">
-              <input type="text" class="swatch-search" id="swatch-search"
-                     placeholder="Search by name or number (e.g. Revere Pewter, HC-172)…" />
-              <div class="swatch-results" id="swatch-results"></div>
-            </div>
-
-            <!-- 2×2 swatch grid -->
-            <div class="swatch-grid" id="swatch-grid">
-              <!-- Populated by room.js -->
+            <div class="photo-content" id="tab-inspiration">
+              <div id="gallery-inspiration"></div>
+              <div class="photo-upload-wrap" id="upload-wrap-inspiration" style="display:none">
+                <label class="photo-upload-btn" for="upload-inspiration">
+                  + Add Inspiration Photos
+                  <input type="file" id="upload-inspiration" accept="image/*" multiple
+                         data-tab="inspiration" class="photo-file-input" />
+                </label>
+              </div>
             </div>
           </div>
 
           <!-- Recommendations Panel -->
           <div class="rec-panel">
             <div class="rec-panel-header">
-              <h2>Designer Recommendations</h2>
+              <h2>Design Notes</h2>
               <button class="edit-toggle-btn" id="edit-toggle">Edit</button>
             </div>
 
@@ -111,6 +112,24 @@
           </div>
 
         </div>
+
+        <!-- Thread / Messages -->
+        <div class="thread-section">
+          <button class="thread-toggle" id="thread-toggle">
+            <span class="thread-arrow" id="thread-arrow">&#9654;</span>
+            Messages
+            <span class="thread-count" id="thread-count"></span>
+          </button>
+          <div class="thread-body" id="thread-body">
+            <div id="messages-list"></div>
+            <div class="draft-indicator" id="draft-indicator" style="display:none"></div>
+            <div class="thread-compose">
+              <textarea id="compose-area" placeholder="Write a message…"></textarea>
+              <button class="btn-primary-small" id="send-btn">Send</button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </main>
@@ -120,10 +139,11 @@
   </footer>
 
   <!-- Save Banner -->
-  <div class="save-banner" id="save-banner">Recommendations saved to JSON!</div>
+  <div class="save-banner" id="save-banner"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase.js"></script>
+  <script src="js/auth.js"></script>
   <script src="js/room.js"></script>
 </body>
 </html>
