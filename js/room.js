@@ -855,7 +855,7 @@ function setupReactionListeners() {
       } else {
         reactions[fk] = rk;
         if (rk === 'discuss') {
-          const fieldLabel = REC_FIELDS.find(f => f.key === fk)?.label || fk;
+          const fieldLabel = REC_CATEGORIES.find(f => f.key === fk)?.label || fk;
           draftMessage = `Re: ${fieldLabel} — `;
           threadOpen = true;
           renderThread();
