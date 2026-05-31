@@ -908,7 +908,7 @@ async function saveRecommendations() {
 // ─── Edit Toggle ──────────────────────────────────────────────────────────
 function setupEditToggle() {
   document.getElementById('edit-toggle').addEventListener('click', () => {
-    if (editMode) exitEditMode(); else enterEditMode();
+    if (editMode) saveRecommendations(); else enterEditMode();
   });
 }
 
