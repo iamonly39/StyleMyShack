@@ -57,9 +57,10 @@ function renderAuthWidget() {
     const emailDisplay = currentUser.email.length > 22
       ? currentUser.email.slice(0, 20) + '…'
       : currentUser.email;
+    const safeRole = ['owner', 'builder', 'viewer'].includes(currentUser.role) ? currentUser.role : 'viewer';
     widget.innerHTML = `
       <span class="auth-email">${escHtml(emailDisplay)}</span>
-      <span class="auth-role-badge auth-role-${escHtml(currentUser.role)}">${escHtml(currentUser.role)}</span>
+      <span class="auth-role-badge auth-role-${safeRole}">${escHtml(currentUser.role)}</span>
       <button id="auth-sign-out" class="auth-signout-btn">Sign out</button>
     `;
     widget.querySelector('#auth-sign-out').addEventListener('click', async () => {
@@ -120,17 +121,20 @@ function ensureSignInModal() {
   modal.querySelector('#signin-cancel-btn').addEventListener('click', closeSignInModal);
 
   // Submit
-  modal.querySelector('#signin-submit-btn').addEventListener('click', handleSignIn);
+  modal.querySelector('#signin-submit-btn').addEventListener('click', () => handleSignIn().catch(err => console.error('Sign-in error:', err)));
 
   // Enter key in email field
   modal.querySelector('#signin-email').addEventListener('keydown', e => {
-    if (e.key === 'Enter') handleSignIn();
+    if (e.key === 'Enter') handleSignIn().catch(err => console.error('Sign-in error:', err));
   });
 
-  // Escape key closes modal
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') closeSignInModal();
-  });
+  // Escape key closes modal — registered once on document (not per modal creation)
+  if (!ensureSignInModal._escListenerAttached) {
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeSignInModal();
+    });
+    ensureSignInModal._escListenerAttached = true;
+  }
 }
 
 function openSignInModal() {
@@ -143,6 +147,9 @@ function openSignInModal() {
   errEl.style.display = 'none';
   errEl.textContent = '';
   document.getElementById('signin-email').value = '';
+  const submitBtn = document.getElementById('signin-submit-btn');
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Send link';
   modal.classList.add('open');
   setTimeout(() => document.getElementById('signin-email').focus(), 50);
 }
@@ -204,6 +211,8 @@ async function handleSignIn() {
       const role = await resolveRole(session.user.email);
       currentUser = { email: session.user.email, role };
       renderAuthWidget();
+      // Safe to call again: _authReady is already true so _authResolvers is empty;
+      // this just iterates an empty array and is a no-op.
       _resolveAuth();
     } else if (event === 'SIGNED_OUT') {
       currentUser = null;
