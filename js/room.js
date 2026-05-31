@@ -262,23 +262,27 @@ const TAB_LABELS = {
 };
 
 async function updateTabCounts(roomId) {
-  const tabs = ['actual', 'model3d', 'floorPlan', 'inspiration'];
-  await Promise.all(tabs.map(async tab => {
-    const { count } = await sb.from('photos')
-      .select('id', { count: 'exact', head: true })
-      .eq('room_id', roomId)
-      .eq('tab', tab);
-    const btn = document.querySelector(`.photo-tab[data-tab="${tab}"]`);
-    if (!btn) return;
-    const n = count || 0;
-    if (n > 0) {
-      btn.textContent = `${TAB_LABELS[tab]} · ${n}`;
-      btn.classList.remove('tab-empty');
-    } else {
-      btn.textContent = TAB_LABELS[tab];
-      btn.classList.add('tab-empty');
-    }
-  }));
+  try {
+    const tabs = ['actual', 'model3d', 'floorPlan', 'inspiration'];
+    await Promise.all(tabs.map(async tab => {
+      const { count } = await sb.from('photos')
+        .select('id', { count: 'exact', head: true })
+        .eq('room_id', roomId)
+        .eq('tab', tab);
+      const btn = document.querySelector(`.photo-tab[data-tab="${tab}"]`);
+      if (!btn) return;
+      const n = count || 0;
+      if (n > 0) {
+        btn.textContent = `${TAB_LABELS[tab]} · ${n}`;
+        btn.classList.remove('tab-empty');
+      } else {
+        btn.textContent = TAB_LABELS[tab];
+        btn.classList.add('tab-empty');
+      }
+    }));
+  } catch {
+    // silent degradation — tab labels stay as default
+  }
 }
 
 // ─── Room Nav Strip ────────────────────────────────────────────────────────
@@ -367,10 +371,9 @@ async function renderGallery(tab) {
   const container = document.getElementById('gallery-' + tab);
   const meta      = GALLERY_ICONS[tab];
   const photos    = await loadPhotos(roomData.id, tab);
-  const isOwner   = currentUser?.role === 'owner';
 
   if (photos.length === 0) {
-    if (isOwner) {
+    if (currentUser?.role === 'owner') {
       container.innerHTML = `
         <div class="photo-placeholder photo-placeholder-upload">
           <span class="icon">${meta.icon}</span>
@@ -399,9 +402,9 @@ async function renderGallery(tab) {
     container.innerHTML = `
       <div class="photo-main-wrap">
         <img class="photo-main" src="${urls[activeIdx]}" alt="Photo ${activeIdx + 1}" />
-        ${isOwner ? `<button class="photo-pin-btn${isPinnedActive ? ' is-pinned' : ''}" data-idx="${activeIdx}"
+        ${currentUser?.role === 'owner' ? `<button class="photo-pin-btn${isPinnedActive ? ' is-pinned' : ''}" data-idx="${activeIdx}"
                 title="${isPinnedActive ? 'Cover photo' : 'Set as cover photo'}">📌</button>` : ''}
-        ${isOwner && editMode ? `<button class="photo-main-delete" data-idx="${activeIdx}">Delete</button>` : ''}
+        ${currentUser?.role === 'owner' && editMode ? `<button class="photo-main-delete" data-idx="${activeIdx}">Delete</button>` : ''}
       </div>
       ${urls.length > 1 ? `
         <div class="photo-thumbs">
@@ -412,7 +415,7 @@ async function renderGallery(tab) {
                 <img class="photo-thumb ${i === activeIdx ? 'active' : ''}"
                      src="${u}" alt="Thumbnail ${i + 1}" data-idx="${i}" />
                 ${isThisPinned ? '<span class="thumb-pin-badge">📌</span>' : ''}
-                ${isOwner && editMode ? `<button class="photo-delete-btn" data-idx="${i}" title="Delete">✕</button>` : ''}
+                ${currentUser?.role === 'owner' && editMode ? `<button class="photo-delete-btn" data-idx="${i}" title="Delete">✕</button>` : ''}
               </div>`;
           }).join('')}
         </div>` : ''}
