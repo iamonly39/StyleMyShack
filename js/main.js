@@ -437,7 +437,13 @@ async function addBuilder() {
     return;
   }
 
+  const btn = document.getElementById('builder-add-btn');
+  if (btn) btn.disabled = true;
+
   const { error } = await sb.from('user_roles').insert({ email, role: 'builder' });
+
+  if (btn) btn.disabled = false;
+
   if (error) {
     if (error.code === '23505') {
       errorEl.textContent = 'That email is already a builder.';
