@@ -86,6 +86,16 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 
 .header-back:hover { color: var(--cream); }
 
+.header-nav-link {
+  margin-left: auto;
+  color: var(--stone-light);
+  font-family: system-ui, sans-serif;
+  font-size: 0.9rem;
+  transition: color var(--transition);
+}
+
+.header-nav-link:hover { color: var(--cream); }
+
 /* ─── Hero / Page Title ──────────────────────────────────────────────────── */
 .page-hero {
   background: linear-gradient(135deg, var(--bark) 0%, var(--bark-dark) 100%);

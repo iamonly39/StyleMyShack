@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS photos (
   tab          TEXT NOT NULL CHECK (tab IN ('actual', 'model3d', 'floorPlan')),
   storage_path TEXT NOT NULL,
   is_pinned    BOOLEAN DEFAULT FALSE,
+  in_gallery   BOOLEAN DEFAULT TRUE,
   sort_order   BIGINT DEFAULT 0,
   created_at   TIMESTAMPTZ DEFAULT NOW()
 );
