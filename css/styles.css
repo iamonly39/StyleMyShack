@@ -1163,8 +1163,15 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  align-items: flex-end;
-  padding-bottom: 44px;
+  align-items: flex-start;
+}
+
+.swatch-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 60px;
 }
 
 .swatch-circle-btn {
@@ -1175,13 +1182,8 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   box-shadow: 0 0 0 1px var(--border);
   cursor: pointer;
   padding: 0;
-  position: relative;
+  flex-shrink: 0;
   transition: transform 0.15s, box-shadow 0.15s;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  overflow: visible;
 }
 
 .swatch-circle-btn:hover {
@@ -1190,31 +1192,21 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 }
 
 .swatch-circle-role {
-  position: absolute;
-  bottom: -18px;
-  left: 50%;
-  transform: translateX(-50%);
   font-size: 0.68rem;
   font-family: system-ui, sans-serif;
   color: var(--stone);
-  white-space: normal;
   text-align: center;
-  max-width: 60px;
+  line-height: 1.2;
   pointer-events: none;
 }
 
 .swatch-circle-label {
-  position: absolute;
-  bottom: -30px;
-  left: 50%;
-  transform: translateX(-50%);
   font-size: 0.6rem;
   font-family: system-ui, sans-serif;
   color: var(--text-muted);
-  white-space: normal;
   text-align: center;
+  line-height: 1.2;
   pointer-events: none;
-  max-width: 60px;
 }
 
 .swatch-add-circle-btn {

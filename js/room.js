@@ -605,12 +605,13 @@ function renderSwatchSets(sets) {
 
     (set.swatches || []).forEach((sw, swi) => {
       const active = editingSwatch && editingSwatch.si === si && editingSwatch.swi === swi;
-      html += `<button class="swatch-circle-btn${active ? ' swatch-circle-active' : ''}" data-open-swatch="${si}-${swi}"
-               style="background:${sw.color || '#CCCCCC'}"
-               title="${escHtml(sw.role || '')}">
-        <span class="swatch-circle-role">${escHtml(sw.role || '')}</span>
+      html += `<div class="swatch-chip">
+        <button class="swatch-circle-btn${active ? ' swatch-circle-active' : ''}" data-open-swatch="${si}-${swi}"
+                style="background:${sw.color || '#CCCCCC'}"
+                title="${escHtml(sw.role || '')}"></button>
+        ${sw.role ? `<span class="swatch-circle-role">${escHtml(sw.role)}</span>` : ''}
         ${sw.label ? `<span class="swatch-circle-label">${escHtml(sw.label)}</span>` : ''}
-      </button>`;
+      </div>`;
     });
 
     html += `<button class="swatch-add-circle-btn" data-add-swatch="${si}" title="Add swatch">+</button>
