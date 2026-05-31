@@ -27,14 +27,25 @@ Import the GitHub repo in Vercel. No build settings are required — Vercel serv
 - **Home page** (`index.html`) — shows all rooms as cards with status indicators and cover photos
 - **Room page** (`room.html?id=<room-id>`) — shows the photo gallery and designer recommendations for that room
 - Room definitions and cabin name live in Supabase (`rooms` and `settings` tables)
-- Recommendations (paint, flooring, lighting, furniture, notes, color swatches) are stored in the `recommendations` table
+- Recommendations (paint, flooring, lighting, furniture, notes, color palettes) are stored in the `recommendations` table
 - Photos are uploaded directly to Supabase Storage (`room-photos` bucket)
+
+## Color Palettes
+
+Each room supports multiple named color palettes. Within the inline swatch editor, a **Benjamin Moore / Sherwin Williams** toggle switches the color search between two catalogs:
+
+| Brand | Colors | Number format |
+|-------|--------|---------------|
+| Benjamin Moore | 4,118 | `OC-17`, `HC-172`, `2167-50`, etc. |
+| Sherwin Williams | 1,526 | `SW 7015`, `SW 6119`, etc. |
+
+Search by color name or number — clicking a result fills the swatch color and auto-formats the label. The color picker also accepts any arbitrary hex color independent of the catalog search.
 
 ## Designer Workflow
 
 1. Open the live site and navigate to a room
 2. Click **Edit**
-3. Upload photos, search and select Benjamin Moore swatches, fill in recommendations
+3. Upload photos, fill in recommendations, and build color palettes using the Benjamin Moore or Sherwin Williams color search
 4. Click **Save** — changes persist immediately to Supabase
 5. Click **Done** to exit edit mode
 
@@ -50,6 +61,17 @@ Insert a new row into the `rooms` table in Supabase (set `id`, `name`, `descript
 | Kitchen | `kitchen` |
 | Bedroom | `bedroom` |
 | Bathroom | `bathroom` |
+
+## Testing
+
+End-to-end tests use [Playwright](https://playwright.dev). All Supabase calls are intercepted with mock data so no live credentials are needed.
+
+```bash
+npx playwright test          # run all tests
+npx playwright test --ui     # open interactive UI
+```
+
+Test files live in `tests/`. Shared fixtures and Supabase mock helpers are in `tests/fixtures.js`.
 
 ## Configuration
 
