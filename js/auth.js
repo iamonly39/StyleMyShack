@@ -1,5 +1,8 @@
 /* ─── Auth — magic link, role resolution, header widget ─────────────────── */
 
+// Flip to false to restore magic link auth
+const TEST_MODE = true;
+
 // Global auth state: { email, role } or null
 let currentUser = null;
 
@@ -64,7 +67,13 @@ function renderAuthWidget() {
       <button id="auth-sign-out" class="auth-signout-btn">Sign out</button>
     `;
     widget.querySelector('#auth-sign-out').addEventListener('click', async () => {
-      await sb.auth.signOut();
+      if (TEST_MODE) {
+        localStorage.removeItem('test_mode_email');
+        currentUser = null;
+        renderAuthWidget();
+      } else {
+        await sb.auth.signOut();
+      }
     });
   } else {
     widget.innerHTML = `
@@ -174,6 +183,15 @@ async function handleSignIn() {
     return;
   }
 
+  if (TEST_MODE) {
+    localStorage.setItem('test_mode_email', email);
+    const role = await resolveRole(email);
+    currentUser = { email, role };
+    renderAuthWidget();
+    closeSignInModal();
+    return;
+  }
+
   submitBtn.disabled = true;
   submitBtn.textContent = 'Sending…';
 
@@ -198,6 +216,17 @@ async function handleSignIn() {
 
 // ── Init IIFE ─────────────────────────────────────────────────────────────────
 (async function initAuth() {
+  if (TEST_MODE) {
+    const email = localStorage.getItem('test_mode_email');
+    if (email) {
+      const role = await resolveRole(email);
+      currentUser = { email, role };
+    }
+    renderAuthWidget();
+    _resolveAuth();
+    return;
+  }
+
   const { data: { session } } = await sb.auth.getSession();
   if (session?.user?.email) {
     const role = await resolveRole(session.user.email);
