@@ -1095,6 +1095,37 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 
 .lightbox-close:hover { background: var(--cream); }
 
+.lightbox-prev, .lightbox-next {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: #fff;
+  font-size: 1.6rem;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: background var(--transition);
+}
+.lightbox-prev { left: -56px; }
+.lightbox-next { right: -56px; }
+.lightbox-prev:hover, .lightbox-next:hover { background: rgba(255,255,255,0.35); }
+
+.lightbox-caption {
+  position: absolute;
+  bottom: -2rem;
+  left: 0; right: 0;
+  text-align: center;
+  color: rgba(255,255,255,0.75);
+  font-size: 0.85rem;
+}
+
 /* ─── Footer ─────────────────────────────────────────────────────────────── */
 .site-footer {
   background: var(--bark-dark);

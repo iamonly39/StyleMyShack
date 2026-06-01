@@ -122,9 +122,9 @@ function renderGrid() {
     </div>`;
   }).join('');
 
-  // Lightbox listeners
-  grid.querySelectorAll('img').forEach(img => {
-    img.addEventListener('click', () => openLightbox(img.dataset.url));
+  // Lightbox listeners — pass full filtered list + index for navigation
+  grid.querySelectorAll('img').forEach((img, i) => {
+    img.addEventListener('click', () => openGalleryLightbox(filtered, i));
   });
 
   // Remove-from-gallery listeners (owner, photos table only)
@@ -146,8 +146,14 @@ function renderGrid() {
   }
 }
 
-// ─── Lightbox ─────────────────────────────────────────────────────────────
-function openLightbox(url) {
+// ─── Gallery Lightbox (navigable) ─────────────────────────────────────────
+let lbPhotos = [];
+let lbIndex  = 0;
+
+function openGalleryLightbox(photos, index) {
+  lbPhotos = photos;
+  lbIndex  = index;
+
   let lb = document.getElementById('photo-lightbox');
   if (!lb) {
     lb = document.createElement('div');
@@ -156,16 +162,42 @@ function openLightbox(url) {
       <div class="lightbox-backdrop"></div>
       <div class="lightbox-frame">
         <button class="lightbox-close" title="Close">✕</button>
+        <button class="lightbox-prev" title="Previous">&#8592;</button>
+        <button class="lightbox-next" title="Next">&#8594;</button>
         <img class="lightbox-img" src="" alt="Full-size photo" />
+        <div class="lightbox-caption"></div>
       </div>`;
     document.body.appendChild(lb);
     lb.querySelector('.lightbox-backdrop').addEventListener('click', closeLightbox);
     lb.querySelector('.lightbox-close').addEventListener('click', closeLightbox);
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+    lb.querySelector('.lightbox-prev').addEventListener('click', e => { e.stopPropagation(); navigateLightbox(-1); });
+    lb.querySelector('.lightbox-next').addEventListener('click', e => { e.stopPropagation(); navigateLightbox(1); });
+    document.addEventListener('keydown', lbKeyHandler);
   }
-  lb.querySelector('.lightbox-img').src = url;
+
+  renderLightboxFrame(lb);
   lb.classList.add('open');
   document.body.style.overflow = 'hidden';
+}
+
+function renderLightboxFrame(lb) {
+  const photo = lbPhotos[lbIndex];
+  lb.querySelector('.lightbox-img').src = photo.url;
+  lb.querySelector('.lightbox-caption').textContent = photo.caption || photo.roomName || '';
+  lb.querySelector('.lightbox-prev').style.display = lbPhotos.length > 1 ? '' : 'none';
+  lb.querySelector('.lightbox-next').style.display = lbPhotos.length > 1 ? '' : 'none';
+}
+
+function navigateLightbox(dir) {
+  lbIndex = (lbIndex + dir + lbPhotos.length) % lbPhotos.length;
+  const lb = document.getElementById('photo-lightbox');
+  if (lb) renderLightboxFrame(lb);
+}
+
+function lbKeyHandler(e) {
+  if (e.key === 'Escape')      closeLightbox();
+  if (e.key === 'ArrowLeft')   navigateLightbox(-1);
+  if (e.key === 'ArrowRight')  navigateLightbox(1);
 }
 
 function closeLightbox() {
