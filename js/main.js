@@ -148,6 +148,12 @@ async function init() {
       manageBtn.textContent = 'Manage team';
       manageBtn.addEventListener('click', openManageTeamModal);
       headerRow.appendChild(manageBtn);
+
+      const addRoomBtn = document.createElement('button');
+      addRoomBtn.className = 'manage-team-btn';
+      addRoomBtn.textContent = '+ Add Room';
+      addRoomBtn.addEventListener('click', openAddRoomModal);
+      headerRow.appendChild(addRoomBtn);
     }
   }
 
@@ -393,6 +399,106 @@ function closeManageTeamModal() {
   document.body.style.overflow = '';
 }
 
+// ─── Add Room Modal ──────────────────────────────────────────────────────────
+function openAddRoomModal() {
+  let modal = document.getElementById('add-room-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'add-room-modal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>Add a Room</h3>
+        <div class="manage-team-add-row" style="flex-direction:column;gap:0.6rem;">
+          <input type="text" id="add-room-name" placeholder="Room name" style="width:100%" />
+          <input type="text" id="add-room-description" placeholder="Description (optional)" style="width:100%" />
+          <input type="text" id="add-room-emoji" placeholder="🏠 Emoji (optional)" style="width:100%" />
+          <input type="number" id="add-room-sort" placeholder="Sort order (e.g. 5)" style="width:100%" />
+        </div>
+        <div id="add-room-error" class="modal-error"></div>
+        <div class="manage-team-close-row" style="justify-content:flex-end;gap:0.5rem;">
+          <button id="add-room-cancel" class="auth-btn-secondary">Cancel</button>
+          <button id="add-room-submit" class="btn-primary-small">Add Room</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', e => { if (e.target === modal) closeAddRoomModal(); });
+    modal.querySelector('#add-room-cancel').addEventListener('click', closeAddRoomModal);
+    modal.querySelector('#add-room-submit').addEventListener('click', submitAddRoom);
+  }
+
+  // Reset form on each open
+  modal.querySelector('#add-room-name').value = '';
+  modal.querySelector('#add-room-description').value = '';
+  modal.querySelector('#add-room-emoji').value = '';
+  modal.querySelector('#add-room-sort').value = '';
+  modal.querySelector('#add-room-error').textContent = '';
+  modal.querySelector('#add-room-submit').disabled = false;
+
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  modal.querySelector('#add-room-name').focus();
+}
+
+function closeAddRoomModal() {
+  const modal = document.getElementById('add-room-modal');
+  if (modal) modal.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function submitAddRoom() {
+  const nameInput = document.getElementById('add-room-name');
+  const descInput = document.getElementById('add-room-description');
+  const emojiInput = document.getElementById('add-room-emoji');
+  const sortInput = document.getElementById('add-room-sort');
+  const errorEl = document.getElementById('add-room-error');
+  const submitBtn = document.getElementById('add-room-submit');
+
+  const name = nameInput.value.trim();
+  const description = descInput.value.trim();
+  const emoji = emojiInput.value.trim();
+  const sortOrder = sortInput.value.trim();
+
+  errorEl.textContent = '';
+
+  if (!name) {
+    errorEl.textContent = 'Room name is required.';
+    nameInput.focus();
+    return;
+  }
+
+  const id = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+  submitBtn.disabled = true;
+
+  const { error: roomError } = await sb.from('rooms').insert({
+    id,
+    name,
+    description: description || null,
+    emoji: emoji || null,
+    sort_order: parseInt(sortOrder) || 99,
+    status: 'not-started'
+  });
+
+  if (roomError) {
+    errorEl.textContent = 'A room with that name already exists.';
+    submitBtn.disabled = false;
+    return;
+  }
+
+  const { error: recError } = await sb.from('recommendations').insert({ room_id: id });
+
+  if (recError) {
+    // Room was created; recommendations insert failed — non-fatal, proceed
+    console.warn('recommendations insert failed:', recError.message);
+  }
+
+  closeAddRoomModal();
+  showBanner('Room added!');
+  window.location.reload();
+}
+
 async function loadBuilderList() {
   const listEl = document.getElementById('builder-list');
   if (!listEl) return;
@@ -631,33 +737,6 @@ function escHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
-}
-
-function openLightbox(url) {
-  let lb = document.getElementById('photo-lightbox');
-  if (!lb) {
-    lb = document.createElement('div');
-    lb.id = 'photo-lightbox';
-    lb.innerHTML = `
-      <div class="lightbox-backdrop"></div>
-      <div class="lightbox-frame">
-        <button class="lightbox-close" title="Close">✕</button>
-        <img class="lightbox-img" src="" alt="Full-size photo" />
-      </div>`;
-    document.body.appendChild(lb);
-    lb.querySelector('.lightbox-backdrop').addEventListener('click', closeLightbox);
-    lb.querySelector('.lightbox-close').addEventListener('click', closeLightbox);
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
-  }
-  lb.querySelector('.lightbox-img').src = url;
-  lb.classList.add('open');
-  document.body.style.overflow = 'hidden';
-}
-
-function closeLightbox() {
-  const lb = document.getElementById('photo-lightbox');
-  if (lb) lb.classList.remove('open');
-  document.body.style.overflow = '';
 }
 
 // ─── Home Comments ────────────────────────────────────────────────────────
