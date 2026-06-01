@@ -91,7 +91,7 @@ function ensureSignInModal() {
     <div class="signin-modal-backdrop"></div>
     <div class="signin-modal-card">
       <h3>Sign in to StyleMyShack</h3>
-      <p class="signin-modal-sub">Enter your email — we'll send you a magic link.</p>
+      <p class="signin-modal-sub">Enter your email — we'll send you a magic link from "Supabase Auth".</p>
       <div id="signin-form-wrap">
         <input
           type="email"
