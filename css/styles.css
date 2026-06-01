@@ -2297,3 +2297,8 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 .gallery-remove-btn:hover { color: var(--bark); }
 .gallery-empty { color: var(--stone); font-style: italic; padding: 2rem 0; }
 .builder-updates-placeholder { color: var(--stone); font-size: 0.875rem; font-style: italic; padding: 0.5rem 0; }
+
+/* ─── Home Builder Updates ──────────────────────────────────────── */
+.home-builder-updates-section { background: var(--cream); padding: 2rem 0 2.5rem; border-top: 1px solid var(--border); }
+.home-builder-updates-title { font-size: 1.1rem; font-weight: 700; color: var(--bark); margin: 0 0 1rem; }
+.home-builder-updates-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; margin-top: 1rem; }

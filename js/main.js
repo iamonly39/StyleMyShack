@@ -158,6 +158,10 @@ async function init() {
   }));
   initHomeCarousel(photos);
   setupSitePhotoUpload();
+
+  if (user?.role === 'owner' || user?.role === 'builder') {
+    loadHomeBuilderUpdates(roomsRes.data || [], user);
+  }
 }
 
 // ─── Project Summary ────────────────────────────────────────────────────────
@@ -482,6 +486,150 @@ function escapeHtml(str) {
 }
 
 // ─── Lightbox ─────────────────────────────────────────────────────────────
+function openLightbox(url) {
+  let lb = document.getElementById('photo-lightbox');
+  if (!lb) {
+    lb = document.createElement('div');
+    lb.id = 'photo-lightbox';
+    lb.innerHTML = `
+      <div class="lightbox-backdrop"></div>
+      <div class="lightbox-frame">
+        <button class="lightbox-close" title="Close">✕</button>
+        <img class="lightbox-img" src="" alt="Full-size photo" />
+      </div>`;
+    document.body.appendChild(lb);
+    lb.querySelector('.lightbox-backdrop').addEventListener('click', closeLightbox);
+    lb.querySelector('.lightbox-close').addEventListener('click', closeLightbox);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+  }
+  lb.querySelector('.lightbox-img').src = url;
+  lb.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  const lb = document.getElementById('photo-lightbox');
+  if (lb) lb.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// ─── Home Builder Updates ─────────────────────────────────────────────────
+let homeBuilderUpdates = [];
+
+async function loadHomeBuilderUpdates(rooms, user) {
+  const { data, error } = await sb.from('builder_updates')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) return;
+
+  homeBuilderUpdates = data || [];
+
+  const section = document.getElementById('home-builder-updates-section');
+  const uploadArea = document.getElementById('home-builder-updates-upload');
+  if (section) section.style.display = '';
+  if (uploadArea) uploadArea.style.display = '';
+
+  renderHomeBuilderUpdates(rooms, user);
+  setupHomeBuilderUpdateUpload(rooms, user);
+}
+
+function renderHomeBuilderUpdates(rooms, user) {
+  const grid = document.getElementById('home-builder-updates-grid');
+  if (!grid) return;
+
+  const roomMap = {};
+  rooms.forEach(r => { roomMap[r.id] = r.name; });
+
+  if (!homeBuilderUpdates.length) {
+    grid.innerHTML = '<p class="builder-updates-placeholder">No updates yet.</p>';
+    return;
+  }
+
+  grid.innerHTML = homeBuilderUpdates.map(item => {
+    const url = sb.storage.from('room-photos').getPublicUrl(item.storage_path).data.publicUrl;
+    const roomLabel = item.room_id ? escHtml(roomMap[item.room_id] || item.room_id) : 'Project';
+    const caption = item.caption ? `<div class="builder-update-caption">${escHtml(item.caption)}</div>` : '';
+    const promote = (user?.role === 'owner' && !item.promoted_to_gallery)
+      ? `<button class="builder-promote-btn" data-update-id="${escHtml(item.id)}">Promote to gallery</button>`
+      : item.promoted_to_gallery ? `<span class="builder-in-gallery">In gallery ✓</span>` : '';
+    return `<div class="builder-update-card">
+      <img class="builder-update-img" src="${escHtml(url)}" alt="${escHtml(item.caption || '')}" data-url="${escHtml(url)}" />
+      ${caption}
+      <div class="builder-update-body">
+        <div class="builder-update-meta">${roomLabel} · ${escHtml(item.uploaded_by)} · ${formatDate(item.created_at)}</div>
+        ${promote}
+      </div>
+    </div>`;
+  }).join('');
+
+  grid.querySelectorAll('.builder-update-img').forEach(img => {
+    img.addEventListener('click', () => openLightbox(img.dataset.url));
+  });
+
+  grid.querySelectorAll('.builder-promote-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.updateId;
+      const { error } = await sb.from('builder_updates').update({ promoted_to_gallery: true }).eq('id', id);
+      if (error) { showBanner('Failed — try again.'); return; }
+      const item = homeBuilderUpdates.find(u => u.id === id);
+      if (item) item.promoted_to_gallery = true;
+      renderHomeBuilderUpdates(rooms, user);
+      showBanner('Added to gallery!');
+    });
+  });
+}
+
+function setupHomeBuilderUpdateUpload(rooms, user) {
+  const fileInput = document.getElementById('home-builder-update-file');
+  if (!fileInput || fileInput.dataset.listenerAttached) return;
+  fileInput.dataset.listenerAttached = 'true';
+
+  fileInput.addEventListener('change', async () => {
+    const files = Array.from(fileInput.files);
+    if (!files.length) return;
+
+    const caption = document.getElementById('home-builder-update-caption')?.value.trim() || '';
+    fileInput.disabled = true;
+    showBanner('Uploading…');
+
+    for (const file of files) {
+      const path = `project/builder-updates/${Date.now()}-${file.name}`;
+      const { error: upErr } = await sb.storage.from('room-photos').upload(path, file);
+      if (upErr) { showBanner('Upload failed — try again.'); continue; }
+
+      const { error: dbErr } = await sb.from('builder_updates').insert({
+        room_id: null,
+        storage_path: path,
+        caption,
+        uploaded_by: currentUser.email
+      });
+      if (dbErr) { showBanner('Save failed — try again.'); continue; }
+    }
+
+    fileInput.disabled = false;
+    fileInput.value = '';
+    const captionInput = document.getElementById('home-builder-update-caption');
+    if (captionInput) captionInput.value = '';
+    showBanner('Update posted!');
+    loadHomeBuilderUpdates(rooms, user);
+  });
+}
+
+function formatDate(isoString) {
+  if (!isoString) return '';
+  return new Date(isoString).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function openLightbox(url) {
   let lb = document.getElementById('photo-lightbox');
   if (!lb) {
