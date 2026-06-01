@@ -2302,3 +2302,22 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 .home-builder-updates-section { background: var(--cream); padding: 2rem 0 2.5rem; border-top: 1px solid var(--border); }
 .home-builder-updates-title { font-size: 1.1rem; font-weight: 700; color: var(--bark); margin: 0 0 1rem; }
 .home-builder-updates-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; margin-top: 1rem; }
+
+/* ─── Comments ──────────────────────────────────────────────────── */
+.comments-section { margin: 2rem 0; }
+.comments-title { font-size: 1rem; font-weight: 600; color: var(--bark); margin-bottom: 0.75rem; }
+.comments-section-home { padding: 2rem 0; border-top: 1px solid var(--border); }
+.comments-home-title { font-size: 1.1rem; font-weight: 700; color: var(--bark); margin: 0 0 1rem; }
+.comment-item { padding: 0.6rem 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+.comment-body { flex: 1; }
+.comment-meta { font-size: 0.75rem; color: var(--stone); margin-bottom: 0.2rem; }
+.comment-text { font-size: 0.875rem; color: var(--bark); }
+.comment-delete-btn { background: none; border: none; color: var(--stone); cursor: pointer; font-size: 0.85rem; padding: 0 4px; flex-shrink: 0; }
+.comment-delete-btn:hover { color: var(--bark); }
+.comments-empty { font-size: 0.875rem; color: var(--stone); font-style: italic; padding: 0.5rem 0; }
+.comments-compose { margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.comment-name-input, .comment-text-input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.875rem; box-sizing: border-box; font-family: inherit; }
+.comment-text-input { resize: vertical; min-height: 60px; }
+.comment-submit-btn { align-self: flex-start; }
+.comments-signin-prompt { font-size: 0.875rem; color: var(--stone); margin-top: 0.75rem; }
+.comments-signin-link { color: var(--bark); cursor: pointer; text-decoration: underline; }

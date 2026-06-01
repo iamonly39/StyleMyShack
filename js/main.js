@@ -162,6 +162,8 @@ async function init() {
   if (user?.role === 'owner' || user?.role === 'builder') {
     loadHomeBuilderUpdates(roomsRes.data || [], user);
   }
+
+  loadHomeComments(user);
 }
 
 // ─── Project Summary ────────────────────────────────────────────────────────
@@ -655,6 +657,83 @@ function closeLightbox() {
   const lb = document.getElementById('photo-lightbox');
   if (lb) lb.classList.remove('open');
   document.body.style.overflow = '';
+}
+
+// ─── Home Comments ────────────────────────────────────────────────────────
+async function loadHomeComments(user) {
+  const { data } = await sb.from('comments')
+    .select('*')
+    .is('room_id', null)
+    .order('created_at', { ascending: true });
+  renderHomeComments(data || [], user);
+}
+
+function renderHomeComments(comments, user) {
+  const listEl    = document.getElementById('home-comments-list');
+  const composeEl = document.getElementById('home-comments-compose');
+  if (!listEl || !composeEl) return;
+
+  const isOwner = user?.role === 'owner';
+
+  // Render comment list
+  if (comments.length === 0) {
+    listEl.innerHTML = '<div class="comments-empty">No comments yet. Be the first!</div>';
+  } else {
+    listEl.innerHTML = comments.map(c => `
+      <div class="comment-item">
+        <div class="comment-body">
+          <div class="comment-meta">${escHtml(c.display_name || c.user_email)} &middot; ${formatDate(c.created_at)}</div>
+          <div class="comment-text">${escHtml(c.text)}</div>
+        </div>
+        ${isOwner ? `<button class="comment-delete-btn" data-comment-id="${escHtml(c.id)}" title="Delete">✕</button>` : ''}
+      </div>`).join('');
+
+    if (isOwner) {
+      listEl.querySelectorAll('.comment-delete-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.commentId;
+          await sb.from('comments').delete().eq('id', id);
+          const idx = comments.findIndex(c => c.id === id);
+          if (idx !== -1) comments.splice(idx, 1);
+          renderHomeComments(comments, user);
+        });
+      });
+    }
+  }
+
+  // Render compose area
+  if (user) {
+    composeEl.innerHTML = `
+      <input type="text" class="comment-name-input" id="home-comment-name" placeholder="Your name (optional)" />
+      <textarea class="comment-text-input" id="home-comment-text" placeholder="Leave a comment…"></textarea>
+      <button class="btn-primary-small comment-submit-btn" id="home-comment-submit">Post</button>`;
+
+    document.getElementById('home-comment-submit').addEventListener('click', async () => {
+      const nameInput = document.getElementById('home-comment-name');
+      const textInput = document.getElementById('home-comment-text');
+      const text = textInput.value.trim();
+      if (!text) return;
+
+      const { data: newComment } = await sb.from('comments').insert({
+        room_id:      null,
+        user_email:   user.email,
+        display_name: nameInput.value.trim(),
+        text
+      }).select().single();
+
+      nameInput.value = '';
+      textInput.value = '';
+
+      const updated = [...comments];
+      if (newComment) updated.push(newComment);
+      renderHomeComments(updated, user);
+    });
+  } else {
+    composeEl.innerHTML = `<div class="comments-signin-prompt">
+      <a class="comments-signin-link" id="home-comment-signin">Sign in</a> to leave a comment.
+    </div>`;
+    document.getElementById('home-comment-signin')?.addEventListener('click', () => openSignInModal());
+  }
 }
 
 init();

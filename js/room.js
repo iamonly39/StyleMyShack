@@ -256,6 +256,8 @@ async function init() {
   if (currentUser?.role === 'owner' || currentUser?.role === 'builder') {
     await loadBuilderUpdates();
   }
+
+  await loadRoomComments(roomId);
 }
 
 // ─── Tab Photo Counts ─────────────────────────────────────────────────────
@@ -1473,6 +1475,83 @@ async function promoteBuilderUpdate(id) {
   if (entry) entry.promoted_to_gallery = true;
   renderBuilderUpdates();
   showBanner('Added to gallery!');
+}
+
+// ─── Comments ─────────────────────────────────────────────────────────────
+async function loadRoomComments(roomId) {
+  const { data } = await sb.from('comments')
+    .select('*')
+    .eq('room_id', roomId)
+    .order('created_at', { ascending: true });
+  renderComments('room-comments-list', 'room-comments-compose', data || [], roomId);
+}
+
+function renderComments(listId, composeId, comments, roomId) {
+  const listEl    = document.getElementById(listId);
+  const composeEl = document.getElementById(composeId);
+  if (!listEl || !composeEl) return;
+
+  const isOwner = currentUser?.role === 'owner';
+
+  // Render comment list
+  if (comments.length === 0) {
+    listEl.innerHTML = '<div class="comments-empty">No comments yet. Be the first!</div>';
+  } else {
+    listEl.innerHTML = comments.map(c => `
+      <div class="comment-item">
+        <div class="comment-body">
+          <div class="comment-meta">${escHtml(c.display_name || c.user_email)} &middot; ${formatDate(c.created_at)}</div>
+          <div class="comment-text">${escHtml(c.text)}</div>
+        </div>
+        ${isOwner ? `<button class="comment-delete-btn" data-comment-id="${escHtml(c.id)}" title="Delete">✕</button>` : ''}
+      </div>`).join('');
+
+    if (isOwner) {
+      listEl.querySelectorAll('.comment-delete-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = btn.dataset.commentId;
+          await sb.from('comments').delete().eq('id', id);
+          const idx = comments.findIndex(c => c.id === id);
+          if (idx !== -1) comments.splice(idx, 1);
+          renderComments(listId, composeId, comments, roomId);
+        });
+      });
+    }
+  }
+
+  // Render compose area
+  if (currentUser) {
+    composeEl.innerHTML = `
+      <input type="text" class="comment-name-input" id="comment-name-${listId}" placeholder="Your name (optional)" />
+      <textarea class="comment-text-input" id="comment-text-${listId}" placeholder="Leave a comment…"></textarea>
+      <button class="btn-primary-small comment-submit-btn" id="comment-submit-${listId}">Post</button>`;
+
+    document.getElementById('comment-submit-' + listId).addEventListener('click', async () => {
+      const nameInput = document.getElementById('comment-name-' + listId);
+      const textInput = document.getElementById('comment-text-' + listId);
+      const text = textInput.value.trim();
+      if (!text) return;
+
+      const { data: newComment } = await sb.from('comments').insert({
+        room_id:      roomId,
+        user_email:   currentUser.email,
+        display_name: nameInput.value.trim(),
+        text
+      }).select().single();
+
+      nameInput.value = '';
+      textInput.value = '';
+
+      const updated = [...comments];
+      if (newComment) updated.push(newComment);
+      renderComments(listId, composeId, updated, roomId);
+    });
+  } else {
+    composeEl.innerHTML = `<div class="comments-signin-prompt">
+      <a class="comments-signin-link" id="comment-signin-${listId}">Sign in</a> to leave a comment.
+    </div>`;
+    document.getElementById('comment-signin-' + listId)?.addEventListener('click', () => openSignInModal());
+  }
 }
 
 setupTabs();
