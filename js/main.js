@@ -351,7 +351,6 @@ function openManageTeamModal() {
     modal.id = 'manage-team-modal';
     modal.className = 'modal-overlay';
     modal.innerHTML = `
-      <div class="modal-backdrop" id="manage-team-backdrop"></div>
       <div class="modal manage-team-modal-card">
         <h3>Team Access</h3>
         <p class="modal-hint">Builders can upload progress photos and participate in room threads.</p>
@@ -367,7 +366,7 @@ function openManageTeamModal() {
       </div>`;
     document.body.appendChild(modal);
 
-    modal.querySelector('#manage-team-backdrop').addEventListener('click', closeManageTeamModal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeManageTeamModal(); });
     modal.querySelector('#manage-team-close').addEventListener('click', closeManageTeamModal);
 
     modal.querySelector('#builder-add-btn').addEventListener('click', addBuilder);
