@@ -1,6 +1,6 @@
 // ─── State ────────────────────────────────────────────────────────────────
 let allPhotos  = [];   // unified array: { id, roomId, roomName, url, caption, source }
-let activeFilter = 'all';
+let activeFilters = new Set();
 
 // ─── Init ─────────────────────────────────────────────────────────────────
 async function init() {
@@ -63,9 +63,9 @@ function renderFilterStrip(rooms) {
   // Only include rooms that actually have photos in the gallery
   const roomsWithPhotos = rooms.filter(r => allPhotos.some(p => p.roomId === r.id));
 
-  let html = `<button class="gallery-filter-btn${activeFilter === 'all' ? ' gallery-filter-active' : ''}" data-filter="all">All</button>`;
+  let html = '';
   roomsWithPhotos.forEach(r => {
-    const active = activeFilter === r.id ? ' gallery-filter-active' : '';
+    const active = activeFilters.has(r.id) ? ' gallery-filter-active' : '';
     html += `<button class="gallery-filter-btn${active}" data-filter="${escHtml(r.id)}">${escHtml(r.emoji ? r.emoji + ' ' : '')}${escHtml(r.name)}</button>`;
   });
 
@@ -73,9 +73,14 @@ function renderFilterStrip(rooms) {
 
   strip.querySelectorAll('.gallery-filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      activeFilter = btn.dataset.filter;
-      strip.querySelectorAll('.gallery-filter-btn').forEach(b => b.classList.remove('gallery-filter-active'));
-      btn.classList.add('gallery-filter-active');
+      const id = btn.dataset.filter;
+      if (activeFilters.has(id)) {
+        activeFilters.delete(id);
+        btn.classList.remove('gallery-filter-active');
+      } else {
+        activeFilters.add(id);
+        btn.classList.add('gallery-filter-active');
+      }
       renderGrid();
     });
   });
@@ -86,9 +91,9 @@ function renderGrid() {
   const grid    = document.getElementById('gallery-grid');
   const isOwner = currentUser?.role === 'owner';
 
-  const filtered = activeFilter === 'all'
+  const filtered = activeFilters.size === 0
     ? allPhotos
-    : allPhotos.filter(p => p.roomId === activeFilter);
+    : allPhotos.filter(p => activeFilters.has(p.roomId));
 
   if (!filtered.length) {
     grid.innerHTML = '<p class="gallery-empty">No gallery photos yet.</p>';
