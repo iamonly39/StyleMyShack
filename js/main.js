@@ -164,6 +164,7 @@ async function init() {
   }
 
   loadHomeComments(user);
+  loadWhatsNew();
 }
 
 // ─── Project Summary ────────────────────────────────────────────────────────
@@ -733,6 +734,50 @@ function renderHomeComments(comments, user) {
       <a class="comments-signin-link" id="home-comment-signin">Sign in</a> to leave a comment.
     </div>`;
     document.getElementById('home-comment-signin')?.addEventListener('click', () => openSignInModal());
+  }
+}
+
+// ─── What's New ───────────────────────────────────────────────────────────
+async function loadWhatsNew() {
+  const el = document.getElementById('whats-new-list');
+  if (!el) return;
+
+  try {
+    const [roomsRes, updatesRes] = await Promise.all([
+      sb.from('rooms').select('id, name, emoji'),
+      sb.from('builder_updates').select('*').eq('promoted_to_gallery', true).order('created_at', { ascending: false }).limit(10)
+    ]);
+
+    const roomMap = {};
+    (roomsRes.data || []).forEach(r => { roomMap[r.id] = r; });
+
+    const updates = updatesRes.data || [];
+
+    if (!updates.length) {
+      el.innerHTML = '<p class="whats-new-empty">Nothing new yet — check back soon.</p>';
+      return;
+    }
+
+    el.innerHTML = updates.map(item => {
+      const url = sb.storage.from('room-photos').getPublicUrl(item.storage_path).data.publicUrl;
+      const room = item.room_id ? roomMap[item.room_id] : null;
+      const roomLabel = room ? escHtml(room.emoji + ' ' + room.name) : 'Project';
+      const caption = item.caption ? `<div class="whats-new-caption">${escHtml(item.caption)}</div>` : '';
+      return `<div class="whats-new-item">
+        <img class="whats-new-thumb" src="${escHtml(url)}" alt="${escHtml(item.caption || '')}" data-url="${escHtml(url)}" />
+        <div class="whats-new-body">
+          <div class="whats-new-room">${roomLabel}</div>
+          ${caption}
+          <div class="whats-new-meta">${escHtml(item.uploaded_by)} &middot; ${formatDate(item.created_at)}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    el.querySelectorAll('.whats-new-thumb').forEach(img => {
+      img.addEventListener('click', () => openLightbox(img.dataset.url));
+    });
+  } catch (e) {
+    // silently do nothing
   }
 }
 
