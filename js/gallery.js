@@ -38,16 +38,21 @@ async function init() {
     });
   });
 
-  // Merge promoted builder updates
+  // Merge promoted builder updates — support both old single path and new photo_paths array
   updates.forEach(u => {
     const room = roomMap[u.room_id];
-    allPhotos.push({
-      id:       u.id,
-      roomId:   u.room_id,
-      roomName: room ? room.name : u.room_id,
-      url:      sb.storage.from('room-photos').getPublicUrl(u.storage_path).data.publicUrl,
-      caption:  u.caption || null,
-      source:   'builder_update'
+    const caption = u.message || u.caption || null;
+    const paths = u.photo_paths?.length ? u.photo_paths : (u.storage_path ? [u.storage_path] : []);
+    if (!paths.length) return; // text-only updates have no gallery photos
+    paths.forEach((path, i) => {
+      allPhotos.push({
+        id:       `${u.id}-${i}`,
+        roomId:   u.room_id,
+        roomName: room ? room.name : u.room_id,
+        url:      sb.storage.from('room-photos').getPublicUrl(path).data.publicUrl,
+        caption:  caption,
+        source:   'builder_update'
+      });
     });
   });
 

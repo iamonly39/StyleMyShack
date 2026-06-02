@@ -2346,17 +2346,39 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 
 /* ─── Builder Updates ──────────────────────────────────────────────────────── */
 .builder-updates-section { margin: 2rem 0; }
-.builder-updates-title { font-size: 1rem; font-weight: 600; color: var(--bark); margin-bottom: 1rem; }
-.builder-updates-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
-.builder-update-card { background: var(--cream); border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
-.builder-update-img { width: 100%; aspect-ratio: 4/3; object-fit: cover; cursor: pointer; display: block; }
-.builder-update-body { padding: 0.6rem 0.75rem; }
-.builder-update-caption { font-size: 0.85rem; color: var(--bark); margin-bottom: 0.25rem; }
-.builder-update-meta { font-size: 0.75rem; color: var(--stone); margin-bottom: 0.5rem; }
+.builder-updates-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.builder-updates-title { font-size: 1rem; font-weight: 600; color: var(--bark); margin: 0; }
+.builder-updates-feed { display: flex; flex-direction: column; gap: 1rem; }
+
+.bu-entry { background: var(--warm-white); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; }
+.bu-entry-header { display: flex; align-items: baseline; gap: 0.6rem; margin-bottom: 0.5rem; }
+.bu-from { font-size: 0.8rem; font-weight: 700; color: var(--bark); text-transform: uppercase; letter-spacing: 0.04em; }
+.bu-date { font-size: 0.75rem; color: var(--stone); }
+.bu-message { font-size: 0.9rem; color: var(--text); margin-bottom: 0.6rem; white-space: pre-wrap; font-family: system-ui, sans-serif; }
+.bu-photos { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.6rem; }
+.bu-thumb { width: 90px; height: 70px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 1px solid var(--border); }
+
+.bu-reply { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: baseline; padding: 0.5rem 0.75rem; background: var(--cream); border-radius: 6px; margin-bottom: 0.4rem; font-family: system-ui, sans-serif; }
+.bu-reply-label { font-size: 0.75rem; font-weight: 700; color: var(--sage); text-transform: uppercase; letter-spacing: 0.04em; flex-shrink: 0; }
+.bu-reply-text { font-size: 0.875rem; color: var(--text); flex: 1; min-width: 0; }
+.bu-reply-date { font-size: 0.7rem; color: var(--stone); flex-shrink: 0; }
+
+.bu-reply-form { margin-top: 0.5rem; display: flex; gap: 0.5rem; align-items: flex-start; }
+.bu-reply-input { flex: 1; padding: 0.4rem 0.65rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; font-family: system-ui, sans-serif; resize: vertical; }
+.bu-reply-input:focus { outline: none; border-color: var(--bark-light); }
+
+.bu-owner-actions { margin-top: 0.6rem; }
 .builder-promote-btn { font-size: 0.75rem; padding: 3px 8px; background: var(--sage); color: #fff; border: none; border-radius: 4px; cursor: pointer; }
 .builder-promote-btn:hover { opacity: 0.85; }
 .builder-in-gallery { font-size: 0.75rem; color: var(--sage); font-weight: 600; }
-.builder-caption-input { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.875rem; margin-top: 0.5rem; box-sizing: border-box; }
+
+.bu-compose-textarea { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.875rem; font-family: system-ui, sans-serif; resize: vertical; box-sizing: border-box; margin-bottom: 0.5rem; }
+.bu-compose-textarea:focus { outline: none; border-color: var(--bark-light); }
+.bu-attach-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+.bu-attach-label { font-size: 0.8rem; color: var(--bark); cursor: pointer; padding: 0.3rem 0.7rem; border: 1px dashed var(--bark-light); border-radius: 6px; transition: var(--transition); }
+.bu-attach-label:hover { background: var(--bark-light); color: white; }
+.bu-file-names { font-size: 0.75rem; color: var(--stone); }
+.bu-empty { color: var(--stone); font-size: 0.875rem; font-style: italic; padding: 0.5rem 0; font-family: system-ui, sans-serif; }
 
 /* ─── Gallery Page ──────────────────────────────────────────────── */
 .gallery-page { padding: 1.5rem 0 3rem; }
@@ -2373,7 +2395,6 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 .gallery-remove-btn { font-size: 0.7rem; color: var(--stone); background: none; border: none; cursor: pointer; padding: 0; margin-top: 0.25rem; text-decoration: underline; }
 .gallery-remove-btn:hover { color: var(--bark); }
 .gallery-empty { color: var(--stone); font-style: italic; padding: 2rem 0; }
-.builder-updates-placeholder { color: var(--stone); font-size: 0.875rem; font-style: italic; padding: 0.5rem 0; }
 
 /* ─── Home Builder Updates ──────────────────────────────────────── */
 .home-builder-updates-section { background: var(--cream); padding: 2rem 0 2.5rem; border-top: 1px solid var(--border); }

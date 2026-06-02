@@ -696,7 +696,10 @@ function renderItemCard(item, reactions, cat, idx) {
   const hasPhoto  = item.photo_url && item.photo_url.trim();
   const hasLink   = item.link && item.link.trim();
   const hasNote   = item.note && item.note.trim();
-  return `<div class="item-card item-card-clickable" data-edit-cat="${cat}" data-edit-idx="${idx}">
+  const isOwner   = currentUser?.role === 'owner';
+  const clickable = isOwner ? ' item-card-clickable' : '';
+  const editAttrs = isOwner ? ` data-edit-cat="${cat}" data-edit-idx="${idx}"` : '';
+  return `<div class="item-card${clickable}"${editAttrs}>
     <div class="item-photo${hasPhoto ? '' : ' item-photo-empty'} ${hasPhoto ? 'item-photo-previewable' : ''}">
       ${hasPhoto ? `<img src="${escHtml(item.photo_url)}" alt="${escHtml(item.name)}">` : '📷'}
     </div>
@@ -1378,96 +1381,232 @@ async function loadBuilderUpdates() {
 
   document.getElementById('builder-updates-section').style.display = '';
 
-  const canUpload = currentUser?.role === 'owner' || currentUser?.role === 'builder';
-  if (canUpload) {
-    document.getElementById('builder-updates-upload').style.display = '';
+  if (currentUser?.role === 'builder') {
+    document.getElementById('add-builder-update-btn').style.display = '';
   }
 
   renderBuilderUpdates();
-  setupBuilderUpdateUpload();
+  setupBuilderUpdateBtn();
 }
 
 function renderBuilderUpdates() {
-  const grid = document.getElementById('builder-updates-grid');
+  const feed = document.getElementById('builder-updates-feed');
+  const isOwner = currentUser?.role === 'owner';
+
   if (!builderUpdates.length) {
-    grid.innerHTML = '<p class="builder-updates-placeholder">No builder updates yet.</p>';
+    feed.innerHTML = '<p class="bu-empty">No updates yet.</p>';
     return;
   }
 
-  const isOwner = currentUser?.role === 'owner';
-  grid.innerHTML = builderUpdates.map(item => {
-    const url = sb.storage.from('room-photos').getPublicUrl(item.storage_path).data.publicUrl;
-    const caption = item.caption ? `<p class="builder-update-caption">${escHtml(item.caption)}</p>` : '';
-    const meta = `<p class="builder-update-meta">${escHtml(item.uploaded_by)} &middot; ${formatDate(item.created_at)}</p>`;
-    let action = '';
+  feed.innerHTML = builderUpdates.map(item => {
+    // Collect photo URLs — support both old single storage_path and new photo_paths array
+    const photoPaths = item.photo_paths?.length ? item.photo_paths : (item.storage_path ? [item.storage_path] : []);
+    const photosHtml = photoPaths.length
+      ? `<div class="bu-photos">${photoPaths.map(p => {
+          const url = sb.storage.from('room-photos').getPublicUrl(p).data.publicUrl;
+          return `<img class="bu-thumb" src="${escHtml(url)}" data-url="${escHtml(url)}" alt="Builder photo">`;
+        }).join('')}</div>`
+      : '';
+
+    // Message text — prefer new message field, fall back to old caption
+    const msgText = item.message || item.caption || '';
+    const msgHtml = msgText ? `<div class="bu-message">${escHtml(msgText)}</div>` : '';
+
+    // Owner replies
+    const replies = item.replies || [];
+    const repliesHtml = replies.map(r => `
+      <div class="bu-reply">
+        <span class="bu-reply-label">Owner</span>
+        <span class="bu-reply-text">${escHtml(r.text)}</span>
+        <span class="bu-reply-date">${formatDate(r.at)}</span>
+      </div>`).join('');
+
+    // Owner actions
+    let ownerActions = '';
     if (isOwner) {
-      action = item.promoted_to_gallery
-        ? '<span class="builder-in-gallery">In Gallery ✓</span>'
+      const promoteBtn = item.promoted_to_gallery || !photoPaths.length
+        ? (item.promoted_to_gallery ? '<span class="builder-in-gallery">In Gallery ✓</span>' : '')
         : `<button class="builder-promote-btn" data-id="${escHtml(item.id)}">Promote to Gallery</button>`;
+      ownerActions = `<div class="bu-owner-actions">${promoteBtn}</div>`;
     }
-    return `
-      <div class="builder-update-card">
-        <img class="builder-update-img" src="${escHtml(url)}" alt="${escHtml(item.caption || 'Builder update')}" data-url="${escHtml(url)}" />
-        <div class="builder-update-body">
-          ${caption}
-          ${meta}
-          ${action}
-        </div>
-      </div>`;
+
+    const replyForm = isOwner
+      ? `<div class="bu-reply-form" id="brf-${escHtml(item.id)}">
+           <textarea class="bu-reply-input" placeholder="Reply…" rows="2"></textarea>
+           <button class="btn-primary-small bu-reply-send" data-id="${escHtml(item.id)}">Send Reply</button>
+         </div>`
+      : '';
+
+    return `<div class="bu-entry" data-id="${escHtml(item.id)}">
+      <div class="bu-entry-header">
+        <span class="bu-from">Builder</span>
+        <span class="bu-date">${formatDate(item.created_at)}</span>
+      </div>
+      ${msgHtml}
+      ${photosHtml}
+      ${repliesHtml}
+      ${replyForm}
+      ${ownerActions}
+    </div>`;
   }).join('');
 
-  grid.querySelectorAll('.builder-update-img').forEach(img => {
+  feed.querySelectorAll('.bu-thumb').forEach(img => {
     img.addEventListener('click', () => openLightbox(img.dataset.url));
   });
 
   if (isOwner) {
-    grid.querySelectorAll('.builder-promote-btn').forEach(btn => {
+    feed.querySelectorAll('.builder-promote-btn').forEach(btn => {
       btn.addEventListener('click', () => promoteBuilderUpdate(btn.dataset.id));
+    });
+    feed.querySelectorAll('.bu-reply-send').forEach(btn => {
+      btn.addEventListener('click', () => sendOwnerReply(btn.dataset.id, btn));
     });
   }
 }
 
-function setupBuilderUpdateUpload() {
-  const fileInput = document.getElementById('builder-update-file');
-  if (!fileInput || fileInput.dataset.listenerAttached) return;
-  fileInput.dataset.listenerAttached = 'true';
+function setupBuilderUpdateBtn() {
+  const btn = document.getElementById('add-builder-update-btn');
+  if (!btn || btn.dataset.listenerAttached) return;
+  btn.dataset.listenerAttached = 'true';
+  btn.addEventListener('click', openBuilderUpdateModal);
+}
 
-  fileInput.addEventListener('change', async () => {
-    const files = Array.from(fileInput.files);
-    if (!files.length) return;
+function openBuilderUpdateModal() {
+  let modal = document.getElementById('builder-update-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'builder-update-modal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>Add Builder Update</h3>
+        <textarea id="bum-text" class="bu-compose-textarea" placeholder="What's the update?" rows="4"></textarea>
+        <div class="bu-attach-row">
+          <label class="bu-attach-label">
+            + Attach Photos (optional)
+            <input type="file" id="bum-file" accept="image/*" multiple class="hidden-input">
+          </label>
+          <span id="bum-file-names" class="bu-file-names"></span>
+        </div>
+        <div id="bum-error" class="modal-error"></div>
+        <div class="manage-team-close-row" style="justify-content:flex-end;gap:0.5rem;">
+          <button id="bum-cancel" class="auth-btn-secondary">Cancel</button>
+          <button id="bum-submit" class="btn-primary-small">Post Update</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeBuilderUpdateModal(); });
+    modal.querySelector('#bum-cancel').addEventListener('click', closeBuilderUpdateModal);
+    modal.querySelector('#bum-submit').addEventListener('click', submitBuilderUpdate);
+    modal.querySelector('#bum-file').addEventListener('change', () => {
+      const names = Array.from(modal.querySelector('#bum-file').files).map(f => f.name).join(', ');
+      modal.querySelector('#bum-file-names').textContent = names;
+    });
+  }
 
-    const caption = document.getElementById('builder-update-caption').value.trim();
-    fileInput.disabled = true;
+  modal.querySelector('#bum-text').value = '';
+  modal.querySelector('#bum-file').value = '';
+  modal.querySelector('#bum-file-names').textContent = '';
+  const errEl = modal.querySelector('#bum-error');
+  errEl.textContent = '';
+  errEl.style.display = 'none';
+  modal.querySelector('#bum-submit').disabled = false;
+  modal.querySelector('#bum-submit').textContent = 'Post Update';
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  modal.querySelector('#bum-text').focus();
+}
 
-    for (const file of files) {
-      const path = `${roomData.id}/builder-updates/${Date.now()}-${file.name}`;
-      const { error: upErr } = await sb.storage.from('room-photos').upload(path, file);
-      if (upErr) {
-        showBanner('Upload failed — try again.');
-        fileInput.disabled = false;
-        fileInput.value = '';
-        return;
-      }
-      const { error: insErr } = await sb.from('builder_updates').insert({
-        room_id:    roomData.id,
-        storage_path: path,
-        caption:    caption,
-        uploaded_by: currentUser.email
-      });
-      if (insErr) {
-        showBanner('Upload failed — try again.');
-        fileInput.disabled = false;
-        fileInput.value = '';
-        return;
-      }
+function closeBuilderUpdateModal() {
+  const modal = document.getElementById('builder-update-modal');
+  if (modal) modal.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function submitBuilderUpdate() {
+  const modal = document.getElementById('builder-update-modal');
+  const message = modal.querySelector('#bum-text').value.trim();
+  const fileInput = modal.querySelector('#bum-file');
+  const errorEl = modal.querySelector('#bum-error');
+  const submitBtn = modal.querySelector('#bum-submit');
+
+  errorEl.style.display = 'none';
+  errorEl.textContent = '';
+
+  if (!message) {
+    errorEl.textContent = 'Please enter an update message.';
+    errorEl.style.display = 'block';
+    modal.querySelector('#bum-text').focus();
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Posting…';
+
+  const files = Array.from(fileInput.files);
+  const photoPaths = [];
+
+  for (const file of files) {
+    const path = `${roomData.id}/builder-updates/${Date.now()}-${file.name}`;
+    const { error: upErr } = await sb.storage.from('room-photos').upload(path, file);
+    if (upErr) {
+      errorEl.textContent = 'Photo upload failed — try again.';
+      errorEl.style.display = 'block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Post Update';
+      return;
     }
+    photoPaths.push(path);
+  }
 
-    document.getElementById('builder-update-caption').value = '';
-    fileInput.disabled = false;
-    fileInput.value = '';
-    showBanner('Update uploaded!');
-    await loadBuilderUpdates();
+  const { error: insErr } = await sb.from('builder_updates').insert({
+    room_id:      roomData.id,
+    storage_path: photoPaths[0] || null,
+    photo_paths:  photoPaths,
+    message:      message,
+    uploaded_by:  currentUser.email,
+    replies:      []
   });
+
+  if (insErr) {
+    errorEl.textContent = 'Failed to post — try again.';
+    errorEl.style.display = 'block';
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Post Update';
+    return;
+  }
+
+  closeBuilderUpdateModal();
+  showBanner('Update posted!');
+  await loadBuilderUpdates();
+}
+
+async function sendOwnerReply(updateId, btn) {
+  const form = document.getElementById('brf-' + updateId);
+  if (!form) return;
+  const textarea = form.querySelector('.bu-reply-input');
+  const text = textarea.value.trim();
+  if (!text) return;
+
+  btn.disabled = true;
+
+  const entry = builderUpdates.find(u => u.id === updateId);
+  const existing = entry?.replies || [];
+  const updated = [...existing, { text, at: new Date().toISOString() }];
+
+  const { error } = await sb.from('builder_updates')
+    .update({ replies: updated })
+    .eq('id', updateId);
+
+  if (error) {
+    showBanner('Reply failed — try again.');
+    btn.disabled = false;
+    return;
+  }
+
+  if (entry) entry.replies = updated;
+  renderBuilderUpdates();
+  showBanner('Reply sent.');
 }
 
 async function promoteBuilderUpdate(id) {

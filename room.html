@@ -123,16 +123,12 @@
 
         <!-- Builder Updates -->
         <div class="builder-updates-section" id="builder-updates-section" style="display:none">
-          <h3 class="builder-updates-title">Builder Updates</h3>
-          <div class="builder-updates-grid" id="builder-updates-grid">
-            <!-- populated by room.js -->
+          <div class="builder-updates-header">
+            <h3 class="builder-updates-title">Builder Updates</h3>
+            <button class="btn-primary-small" id="add-builder-update-btn" style="display:none">+ Add Update</button>
           </div>
-          <div class="builder-updates-upload" id="builder-updates-upload" style="display:none">
-            <label class="photo-upload-btn" for="builder-update-file">
-              + Add Update Photo
-              <input type="file" id="builder-update-file" accept="image/*" multiple class="hidden-input" />
-            </label>
-            <input type="text" id="builder-update-caption" class="builder-caption-input" placeholder="Caption (optional)" />
+          <div class="builder-updates-feed" id="builder-updates-feed">
+            <!-- populated by room.js -->
           </div>
         </div>
 
