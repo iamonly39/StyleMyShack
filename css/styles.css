@@ -334,6 +334,52 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   margin-bottom: 0.85rem;
 }
 
+.room-card-owner-controls {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+
+.room-edit-btn,
+.room-delete-btn {
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  background: var(--cream);
+  color: var(--text-muted);
+  transition: var(--transition);
+}
+
+.room-edit-btn:hover {
+  background: var(--bark-light);
+  color: var(--bark-dark);
+  border-color: var(--bark-light);
+}
+
+.room-delete-btn:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.btn-danger-small {
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+  padding: 0.45rem 1rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: #dc2626;
+  color: white;
+  transition: var(--transition);
+}
+
+.btn-danger-small:hover { background: #b91c1c; }
+.btn-danger-small:disabled { opacity: 0.6; cursor: not-allowed; }
+
 /* .room-status replaced by .status-badge (see Home Carousel section above) */
 
 .rooms-empty {

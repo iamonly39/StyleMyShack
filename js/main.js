@@ -106,18 +106,34 @@ async function init() {
   } else {
     rooms.forEach(room => {
       const status = room.status || 'not-started';
+      const isOwner = user?.role === 'owner';
       const card = document.createElement('a');
       card.className = 'room-card';
       card.href = `room.html?id=${room.id}`;
       card.innerHTML = `
-        <div class="room-card-photo placeholder" id="thumb-${room.id}">${room.emoji || '🏠'}</div>
+        <div class="room-card-photo placeholder" id="thumb-${room.id}">${escHtml(room.emoji || '🏠')}</div>
         <div class="room-card-body">
-          <h3>${room.name}</h3>
-          <p>${room.description || ''}</p>
+          <h3>${escHtml(room.name)}</h3>
+          <p>${escHtml(room.description || '')}</p>
           <span class="status-badge ${status}">${fmtStatus(status)}</span>
+          ${isOwner ? `<div class="room-card-owner-controls">
+            <button class="room-edit-btn" data-room-id="${escHtml(room.id)}" title="Edit room">Edit</button>
+            <button class="room-delete-btn" data-room-id="${escHtml(room.id)}" data-room-name="${escHtml(room.name)}" title="Delete room">Delete</button>
+          </div>` : ''}
         </div>
       `;
       grid.appendChild(card);
+
+      if (isOwner) {
+        card.querySelector('.room-edit-btn')?.addEventListener('click', e => {
+          e.preventDefault(); e.stopPropagation();
+          openEditRoomModal(room);
+        });
+        card.querySelector('.room-delete-btn')?.addEventListener('click', e => {
+          e.preventDefault(); e.stopPropagation();
+          confirmDeleteRoom(room.id, room.name);
+        });
+      }
 
       // Load thumbnail async — swap in when ready
       loadRoomThumb(room.id).then(url => {
@@ -502,6 +518,164 @@ async function submitAddRoom() {
   showBanner('Room added!');
   window.location.reload();
 }
+
+// ── Edit Room ──────────────────────────────────────────────────────────────────
+function openEditRoomModal(room) {
+  let modal = document.getElementById('edit-room-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'edit-room-modal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>Edit Room</h3>
+        <div class="manage-team-add-row" style="flex-direction:column;gap:0.6rem;">
+          <input type="text" id="edit-room-name" placeholder="Room name" style="width:100%" />
+          <input type="text" id="edit-room-description" placeholder="Description (optional)" style="width:100%" />
+          <input type="text" id="edit-room-emoji" placeholder="🏠 Emoji (optional)" style="width:100%" />
+          <input type="number" id="edit-room-sort" placeholder="Sort order (e.g. 5)" style="width:100%" />
+        </div>
+        <div id="edit-room-error" class="modal-error"></div>
+        <div class="manage-team-close-row" style="justify-content:flex-end;gap:0.5rem;">
+          <button id="edit-room-cancel" class="auth-btn-secondary">Cancel</button>
+          <button id="edit-room-submit" class="btn-primary-small">Save Changes</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeEditRoomModal(); });
+    modal.querySelector('#edit-room-cancel').addEventListener('click', closeEditRoomModal);
+    modal.querySelector('#edit-room-submit').addEventListener('click', submitEditRoom);
+  }
+
+  modal.dataset.roomId = room.id;
+  modal.querySelector('#edit-room-name').value = room.name || '';
+  modal.querySelector('#edit-room-description').value = room.description || '';
+  modal.querySelector('#edit-room-emoji').value = room.emoji || '';
+  modal.querySelector('#edit-room-sort').value = room.sort_order ?? '';
+  const errEl = modal.querySelector('#edit-room-error');
+  errEl.textContent = '';
+  errEl.style.display = 'none';
+  modal.querySelector('#edit-room-submit').disabled = false;
+
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  modal.querySelector('#edit-room-name').focus();
+}
+
+function closeEditRoomModal() {
+  const modal = document.getElementById('edit-room-modal');
+  if (modal) modal.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function submitEditRoom() {
+  const modal = document.getElementById('edit-room-modal');
+  const roomId = modal.dataset.roomId;
+  const nameInput = modal.querySelector('#edit-room-name');
+  const errorEl = modal.querySelector('#edit-room-error');
+  const submitBtn = modal.querySelector('#edit-room-submit');
+
+  const name = nameInput.value.trim();
+  const description = modal.querySelector('#edit-room-description').value.trim();
+  const emoji = modal.querySelector('#edit-room-emoji').value.trim();
+  const sortOrder = modal.querySelector('#edit-room-sort').value.trim();
+
+  errorEl.style.display = 'none';
+  errorEl.textContent = '';
+
+  if (!name) {
+    errorEl.textContent = 'Room name is required.';
+    errorEl.style.display = 'block';
+    nameInput.focus();
+    return;
+  }
+
+  submitBtn.disabled = true;
+
+  const { error } = await sb.from('rooms').update({
+    name,
+    description: description || null,
+    emoji: emoji || null,
+    sort_order: parseInt(sortOrder) || 99
+  }).eq('id', roomId);
+
+  if (error) {
+    errorEl.textContent = error.message;
+    errorEl.style.display = 'block';
+    submitBtn.disabled = false;
+    return;
+  }
+
+  closeEditRoomModal();
+  showBanner('Room updated!');
+  window.location.reload();
+}
+
+// ── Delete Room ────────────────────────────────────────────────────────────────
+function confirmDeleteRoom(roomId, roomName) {
+  let modal = document.getElementById('delete-room-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'delete-room-modal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>Delete Room</h3>
+        <p id="delete-room-msg" style="font-family:system-ui;font-size:0.9rem;color:var(--text-muted);margin-bottom:1rem;"></p>
+        <div id="delete-room-error" class="modal-error"></div>
+        <div class="manage-team-close-row" style="justify-content:flex-end;gap:0.5rem;">
+          <button id="delete-room-cancel" class="auth-btn-secondary">Cancel</button>
+          <button id="delete-room-confirm" class="btn-danger-small">Delete</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeDeleteRoomModal(); });
+    modal.querySelector('#delete-room-cancel').addEventListener('click', closeDeleteRoomModal);
+    modal.querySelector('#delete-room-confirm').addEventListener('click', submitDeleteRoom);
+  }
+
+  modal.dataset.roomId = roomId;
+  modal.querySelector('#delete-room-msg').textContent = `Are you sure you want to delete "${roomName}"? This will remove the room and all its photos and recommendations.`;
+  const errEl = modal.querySelector('#delete-room-error');
+  errEl.textContent = '';
+  errEl.style.display = 'none';
+  modal.querySelector('#delete-room-confirm').disabled = false;
+
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDeleteRoomModal() {
+  const modal = document.getElementById('delete-room-modal');
+  if (modal) modal.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function submitDeleteRoom() {
+  const modal = document.getElementById('delete-room-modal');
+  const roomId = modal.dataset.roomId;
+  const errorEl = modal.querySelector('#delete-room-error');
+  const confirmBtn = modal.querySelector('#delete-room-confirm');
+
+  errorEl.style.display = 'none';
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = 'Deleting…';
+
+  const { error } = await sb.from('rooms').delete().eq('id', roomId);
+
+  if (error) {
+    errorEl.textContent = error.message;
+    errorEl.style.display = 'block';
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Delete';
+    return;
+  }
+
+  closeDeleteRoomModal();
+  showBanner('Room deleted.');
+  window.location.reload();
+}
+
 
 async function loadBuilderList() {
   const listEl = document.getElementById('builder-list');
