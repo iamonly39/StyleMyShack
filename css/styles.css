@@ -1801,6 +1801,120 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   cursor: text;
 }
 
+.owner-journal-block {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border);
+}
+
+.owner-journal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.owner-journal-private {
+  font-size: 0.65rem;
+  color: var(--stone);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 0.3rem;
+}
+
+.owner-journal-add-btn {
+  font-family: system-ui, sans-serif;
+  font-size: 0.78rem;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid var(--bark-light);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--bark);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.owner-journal-add-btn:hover { background: var(--bark-light); color: white; }
+
+.owner-journal-compose {
+  background: var(--warm-white);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.owner-journal-date {
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  color: var(--stone);
+  margin-bottom: 0.4rem;
+}
+
+.owner-journal-textarea {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-family: system-ui, sans-serif;
+  resize: vertical;
+  box-sizing: border-box;
+  margin-bottom: 0.5rem;
+}
+.owner-journal-textarea:focus { outline: none; border-color: var(--bark-light); }
+
+.owner-journal-compose-btns { display: flex; gap: 0.5rem; justify-content: flex-end; }
+
+.owner-journal-feed { display: flex; flex-direction: column; gap: 0.6rem; }
+
+.owner-journal-entry {
+  background: var(--warm-white);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 0.6rem 0.75rem;
+}
+
+.owner-journal-entry-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.3rem;
+}
+
+.owner-journal-entry-date {
+  font-family: system-ui, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--bark);
+}
+
+.owner-journal-delete-btn {
+  background: none;
+  border: none;
+  color: var(--stone);
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0 3px;
+  line-height: 1;
+  transition: color var(--transition);
+}
+.owner-journal-delete-btn:hover { color: #b91c1c; }
+
+.owner-journal-entry-text {
+  font-family: system-ui, sans-serif;
+  font-size: 0.875rem;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+
+.owner-journal-empty {
+  font-family: system-ui, sans-serif;
+  font-size: 0.85rem;
+  color: var(--stone);
+  font-style: italic;
+}
+
 /* ─── Thread / Messages ──────────────────────────────────────────────────── */
 .thread-section { margin-top: 2rem; }
 

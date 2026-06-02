@@ -96,6 +96,14 @@ async function init() {
     renderOwnerBrief(ownerNotesEl, ownerNotesVal, user);
   }
 
+  // Owner-only private journal
+  if (user?.role === 'owner') {
+    const journalRaw = settingsRes.data?.find(s => s.key === 'owner_journal')?.value || '[]';
+    let journalEntries = [];
+    try { journalEntries = JSON.parse(journalRaw); } catch (_) {}
+    setupOwnerJournal(journalEntries);
+  }
+
   // Room cards
   const rooms = roomsRes.data || [];
   const grid  = document.getElementById('room-grid');
@@ -369,6 +377,89 @@ function setupSitePhotoUpload() {
     renderHomeCarousel();
     startHomeTimer();
     showBanner('Uploaded!');
+  });
+}
+
+// ─── Owner Journal (private dated notes) ──────────────────────────────────
+function setupOwnerJournal(entries) {
+  const block = document.getElementById('owner-journal-block');
+  if (!block) return;
+  block.style.display = '';
+
+  // Seed today's date in the compose area
+  document.getElementById('owner-journal-date').textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+  renderJournalFeed(entries);
+
+  document.getElementById('owner-journal-add-btn').addEventListener('click', () => {
+    const compose = document.getElementById('owner-journal-compose');
+    const isOpen  = compose.style.display !== 'none';
+    compose.style.display = isOpen ? 'none' : '';
+    if (!isOpen) document.getElementById('owner-journal-text').focus();
+  });
+
+  document.getElementById('owner-journal-cancel').addEventListener('click', () => {
+    document.getElementById('owner-journal-compose').style.display = 'none';
+    document.getElementById('owner-journal-text').value = '';
+  });
+
+  document.getElementById('owner-journal-save').addEventListener('click', async () => {
+    const text = document.getElementById('owner-journal-text').value.trim();
+    if (!text) return;
+
+    const saveBtn = document.getElementById('owner-journal-save');
+    saveBtn.disabled = true;
+
+    const newEntry = { text, date: new Date().toISOString() };
+    entries = [newEntry, ...entries];
+
+    const { error } = await sb.from('settings').upsert(
+      { key: 'owner_journal', value: JSON.stringify(entries) },
+      { onConflict: 'key' }
+    );
+
+    saveBtn.disabled = false;
+
+    if (error) {
+      showBanner('Save failed — try again.');
+      entries = entries.slice(1);
+      return;
+    }
+
+    document.getElementById('owner-journal-text').value = '';
+    document.getElementById('owner-journal-compose').style.display = 'none';
+    renderJournalFeed(entries);
+    showBanner('Entry saved.');
+  });
+}
+
+function renderJournalFeed(entries) {
+  const feed = document.getElementById('owner-journal-feed');
+  if (!entries.length) {
+    feed.innerHTML = '<p class="owner-journal-empty">No entries yet.</p>';
+    return;
+  }
+  feed.innerHTML = entries.map((e, i) => `
+    <div class="owner-journal-entry">
+      <div class="owner-journal-entry-header">
+        <span class="owner-journal-entry-date">${new Date(e.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+        <button class="owner-journal-delete-btn" data-idx="${i}" title="Delete entry">✕</button>
+      </div>
+      <div class="owner-journal-entry-text">${escHtml(e.text)}</div>
+    </div>`).join('');
+
+  feed.querySelectorAll('.owner-journal-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const idx = +btn.dataset.idx;
+      const updated = entries.filter((_, i) => i !== idx);
+      const { error } = await sb.from('settings').upsert(
+        { key: 'owner_journal', value: JSON.stringify(updated) },
+        { onConflict: 'key' }
+      );
+      if (error) { showBanner('Delete failed.'); return; }
+      entries = updated;
+      renderJournalFeed(entries);
+    });
   });
 }
 

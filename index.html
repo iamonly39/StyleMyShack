@@ -48,6 +48,23 @@
         <div class="owner-brief-label">Project Summary</div>
         <div class="owner-brief-text" id="owner-notes-text" data-placeholder="Add a project overview…"></div>
       </div>
+
+      <!-- Owner-only private journal — hidden from all other roles -->
+      <div class="owner-journal-block" id="owner-journal-block" style="display:none">
+        <div class="owner-journal-header">
+          <div class="owner-brief-label">Project Updates <span class="owner-journal-private">(private)</span></div>
+          <button class="owner-journal-add-btn" id="owner-journal-add-btn">+ Add Entry</button>
+        </div>
+        <div class="owner-journal-compose" id="owner-journal-compose" style="display:none">
+          <div class="owner-journal-date" id="owner-journal-date"></div>
+          <textarea class="owner-journal-textarea" id="owner-journal-text" placeholder="What's the update?" rows="3"></textarea>
+          <div class="owner-journal-compose-btns">
+            <button class="auth-btn-secondary" id="owner-journal-cancel">Cancel</button>
+            <button class="btn-primary-small" id="owner-journal-save">Save Entry</button>
+          </div>
+        </div>
+        <div class="owner-journal-feed" id="owner-journal-feed"></div>
+      </div>
     </div>
   </section>
 
