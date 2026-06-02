@@ -433,7 +433,9 @@ function openAddRoomModal() {
   modal.querySelector('#add-room-description').value = '';
   modal.querySelector('#add-room-emoji').value = '';
   modal.querySelector('#add-room-sort').value = '';
-  modal.querySelector('#add-room-error').textContent = '';
+  const errEl = modal.querySelector('#add-room-error');
+  errEl.textContent = '';
+  errEl.style.display = 'none';
   modal.querySelector('#add-room-submit').disabled = false;
 
   modal.classList.add('open');
@@ -464,6 +466,7 @@ async function submitAddRoom() {
 
   if (!name) {
     errorEl.textContent = 'Room name is required.';
+    errorEl.style.display = 'block';
     nameInput.focus();
     return;
   }
@@ -482,7 +485,8 @@ async function submitAddRoom() {
   });
 
   if (roomError) {
-    errorEl.textContent = 'A room with that name already exists.';
+    errorEl.textContent = roomError.code === '23505' ? 'A room with that name already exists.' : roomError.message;
+    errorEl.style.display = 'block';
     submitBtn.disabled = false;
     return;
   }
