@@ -540,6 +540,15 @@ function renderRecommendations() {
   }
 }
 
+function gatherSwatchEdits() {
+  document.querySelectorAll('[data-set-name]').forEach(input => {
+    const si = +input.dataset.setName;
+    if (roomData.recommendations.swatch_sets[si]) {
+      roomData.recommendations.swatch_sets[si].name = input.value;
+    }
+  });
+}
+
 function setupItemListeners() {
   const body = document.getElementById('rec-body');
 
