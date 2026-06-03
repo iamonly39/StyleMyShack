@@ -3,6 +3,10 @@ let homeSlide = 0;
 let homeTimer = null;
 let sitePhotos = [];
 
+// ─── Lightbox State ────────────────────────────────────────────────────────
+let lbUrls  = [];
+let lbIndex = 0;
+
 // ─── Helpers ──────────────────────────────────────────────────────────────
 function showBanner(msg) {
   const banner = document.getElementById('save-banner');
@@ -283,7 +287,7 @@ function renderHomeCarousel() {
   ).join('');
 
   wrap.querySelectorAll('.carousel-clickable').forEach((img, i) => {
-    img.addEventListener('click', () => openLightbox(sitePhotos[i].publicUrl));
+    img.addEventListener('click', () => openLightboxAt(i, sitePhotos.map(p => p.publicUrl)));
   });
 
   wrap.querySelectorAll('.carousel-delete-btn').forEach(btn => {
@@ -300,6 +304,26 @@ function renderHomeCarousel() {
       showBanner('Photo deleted.');
     });
   });
+
+  // Owner reorder: overlay arrows on the wrap
+  if (isOwner && sitePhotos.length > 1) {
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'carousel-reorder-btn carousel-reorder-prev';
+    prevBtn.title = 'Move photo left';
+    prevBtn.innerHTML = '&#8249;';
+    prevBtn.disabled = homeSlide === 0;
+    prevBtn.addEventListener('click', e => { e.stopPropagation(); moveCarouselPhoto(-1); });
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'carousel-reorder-btn carousel-reorder-next';
+    nextBtn.title = 'Move photo right';
+    nextBtn.innerHTML = '&#8250;';
+    nextBtn.disabled = homeSlide === sitePhotos.length - 1;
+    nextBtn.addEventListener('click', e => { e.stopPropagation(); moveCarouselPhoto(1); });
+
+    wrap.appendChild(prevBtn);
+    wrap.appendChild(nextBtn);
+  }
 
   if (sitePhotos.length > 1) {
     dotsEl.innerHTML = sitePhotos.map((_, i) =>
@@ -339,6 +363,32 @@ function startHomeTimer() {
       if (counter) counter.textContent = `${homeSlide + 1} / ${sitePhotos.length}`;
     }, 4000);
   }
+}
+
+// ─── Carousel Photo Reorder ────────────────────────────────────────────────
+async function moveCarouselPhoto(dir) {
+  const newIdx = homeSlide + dir;
+  if (newIdx < 0 || newIdx >= sitePhotos.length) return;
+
+  const a = sitePhotos[homeSlide];
+  const b = sitePhotos[newIdx];
+  const sortA = a.sort_order;
+  const sortB = b.sort_order;
+
+  // Optimistic swap in local array
+  sitePhotos[homeSlide] = b;
+  sitePhotos[newIdx]    = a;
+  b.sort_order = sortA;
+  a.sort_order = sortB;
+  homeSlide = newIdx;
+
+  renderHomeCarousel();
+  startHomeTimer();
+
+  await Promise.all([
+    sb.from('site_photos').update({ sort_order: sortB }).eq('id', a.id),
+    sb.from('site_photos').update({ sort_order: sortA }).eq('id', b.id),
+  ]);
 }
 
 // ─── Site Photo Upload ─────────────────────────────────────────────────────
@@ -877,6 +927,13 @@ function escapeHtml(str) {
 
 // ─── Lightbox ─────────────────────────────────────────────────────────────
 function openLightbox(url) {
+  openLightboxAt(0, [url]);
+}
+
+function openLightboxAt(index, urls) {
+  lbUrls  = urls;
+  lbIndex = index;
+
   let lb = document.getElementById('photo-lightbox');
   if (!lb) {
     lb = document.createElement('div');
@@ -885,16 +942,45 @@ function openLightbox(url) {
       <div class="lightbox-backdrop"></div>
       <div class="lightbox-frame">
         <button class="lightbox-close" title="Close">✕</button>
+        <button class="lightbox-prev" title="Previous">&#8249;</button>
         <img class="lightbox-img" src="" alt="Full-size photo" />
+        <button class="lightbox-next" title="Next">&#8250;</button>
+        <div class="lightbox-counter"></div>
       </div>`;
     document.body.appendChild(lb);
     lb.querySelector('.lightbox-backdrop').addEventListener('click', closeLightbox);
     lb.querySelector('.lightbox-close').addEventListener('click', closeLightbox);
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+    lb.querySelector('.lightbox-prev').addEventListener('click', () => lbNav(-1));
+    lb.querySelector('.lightbox-next').addEventListener('click', () => lbNav(1));
+    document.addEventListener('keydown', lbKeyHandler);
   }
-  lb.querySelector('.lightbox-img').src = url;
+
+  lbRender(lb);
   lb.classList.add('open');
   document.body.style.overflow = 'hidden';
+}
+
+function lbRender(lb) {
+  lb = lb || document.getElementById('photo-lightbox');
+  if (!lb) return;
+  lb.querySelector('.lightbox-img').src = lbUrls[lbIndex];
+  const multi = lbUrls.length > 1;
+  lb.querySelector('.lightbox-prev').style.display  = multi ? '' : 'none';
+  lb.querySelector('.lightbox-next').style.display  = multi ? '' : 'none';
+  lb.querySelector('.lightbox-counter').textContent = multi ? `${lbIndex + 1} / ${lbUrls.length}` : '';
+}
+
+function lbNav(dir) {
+  lbIndex = (lbIndex + dir + lbUrls.length) % lbUrls.length;
+  lbRender();
+}
+
+function lbKeyHandler(e) {
+  const lb = document.getElementById('photo-lightbox');
+  if (!lb?.classList.contains('open')) return;
+  if (e.key === 'Escape')     closeLightbox();
+  if (e.key === 'ArrowLeft')  lbNav(-1);
+  if (e.key === 'ArrowRight') lbNav(1);
 }
 
 function closeLightbox() {
