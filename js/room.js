@@ -1392,6 +1392,7 @@ async function loadBuilderUpdates() {
 function renderBuilderUpdates() {
   const feed = document.getElementById('builder-updates-feed');
   const isOwner = currentUser?.role === 'owner';
+  const isBuilder = currentUser?.role === 'builder';
 
   if (!builderUpdates.length) {
     feed.innerHTML = '<p class="bu-empty">No updates yet.</p>';
@@ -1437,6 +1438,13 @@ function renderBuilderUpdates() {
          </div>`
       : '';
 
+    const updateControls = (isOwner || isBuilder)
+      ? `<div class="bu-update-controls">
+           ${isBuilder ? `<button class="bu-edit-btn" data-id="${escHtml(item.id)}">Edit</button>` : ''}
+           <button class="bu-delete-btn" data-id="${escHtml(item.id)}">Delete</button>
+         </div>`
+      : '';
+
     return `<div class="bu-entry" data-id="${escHtml(item.id)}">
       <div class="bu-entry-header">
         <span class="bu-from">Builder</span>
@@ -1447,11 +1455,58 @@ function renderBuilderUpdates() {
       ${repliesHtml}
       ${replyForm}
       ${ownerActions}
+      ${updateControls}
     </div>`;
   }).join('');
 
   feed.querySelectorAll('.bu-thumb').forEach(img => {
     img.addEventListener('click', () => openLightbox(img.dataset.url));
+  });
+
+  feed.querySelectorAll('.bu-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      const { error } = await sb.from('builder_updates').delete().eq('id', id);
+      if (error) { showBanner('Delete failed.'); return; }
+      builderUpdates = builderUpdates.filter(u => u.id !== id);
+      renderBuilderUpdates();
+      showBanner('Update deleted.');
+    });
+  });
+
+  feed.querySelectorAll('.bu-edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const entry = builderUpdates.find(u => u.id === id);
+      if (!entry) return;
+      const entryEl = feed.querySelector(`.bu-entry[data-id="${CSS.escape(id)}"]`);
+      const msgEl = entryEl?.querySelector('.bu-message');
+      if (!msgEl) return;
+      const originalText = entry.message || entry.caption || '';
+      const editArea = document.createElement('div');
+      editArea.className = 'bu-edit-area';
+      editArea.innerHTML = `
+        <textarea class="bu-edit-textarea" rows="3"></textarea>
+        <div class="bu-edit-btns">
+          <button class="auth-btn-secondary bu-edit-cancel">Cancel</button>
+          <button class="btn-primary-small bu-edit-save">Save</button>
+        </div>`;
+      editArea.querySelector('.bu-edit-textarea').value = originalText;
+      msgEl.replaceWith(editArea);
+      editArea.querySelector('.bu-edit-textarea').focus();
+      editArea.querySelector('.bu-edit-cancel').addEventListener('click', () => renderBuilderUpdates());
+      editArea.querySelector('.bu-edit-save').addEventListener('click', async () => {
+        const newText = editArea.querySelector('.bu-edit-textarea').value.trim();
+        if (!newText) return;
+        const saveBtn = editArea.querySelector('.bu-edit-save');
+        saveBtn.disabled = true;
+        const { error } = await sb.from('builder_updates').update({ message: newText }).eq('id', id);
+        if (error) { showBanner('Save failed.'); saveBtn.disabled = false; return; }
+        entry.message = newText;
+        renderBuilderUpdates();
+        showBanner('Updated!');
+      });
+    });
   });
 
   if (isOwner) {

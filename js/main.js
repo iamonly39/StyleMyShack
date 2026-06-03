@@ -96,12 +96,12 @@ async function init() {
     renderOwnerBrief(ownerNotesEl, ownerNotesVal, user);
   }
 
-  // Owner-only private journal
-  if (user?.role === 'owner') {
+  // Project Updates journal — visible to all, editable by owner only
+  {
     const journalRaw = settingsRes.data?.find(s => s.key === 'owner_journal')?.value || '[]';
     let journalEntries = [];
     try { journalEntries = JSON.parse(journalRaw); } catch (_) {}
-    setupOwnerJournal(journalEntries);
+    setupOwnerJournal(journalEntries, user);
   }
 
   // Room cards
@@ -381,15 +381,24 @@ function setupSitePhotoUpload() {
 }
 
 // ─── Owner Journal (private dated notes) ──────────────────────────────────
-function setupOwnerJournal(entries) {
+function setupOwnerJournal(entries, user) {
   const block = document.getElementById('owner-journal-block');
   if (!block) return;
+  const isOwner = user?.role === 'owner';
+
+  // Non-owners only see the block when there are entries to read
+  if (!isOwner && !entries.length) return;
   block.style.display = '';
 
-  // Seed today's date in the compose area
+  // Hide add-entry button for non-owners
+  const addBtn = document.getElementById('owner-journal-add-btn');
+  if (addBtn) addBtn.style.display = isOwner ? '' : 'none';
+
   document.getElementById('owner-journal-date').textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   renderJournalFeed(entries);
+
+  if (!isOwner) return;
 
   document.getElementById('owner-journal-add-btn').addEventListener('click', () => {
     const compose = document.getElementById('owner-journal-compose');
@@ -435,32 +444,35 @@ function setupOwnerJournal(entries) {
 
 function renderJournalFeed(entries) {
   const feed = document.getElementById('owner-journal-feed');
+  const isOwner = currentUser?.role === 'owner';
   if (!entries.length) {
-    feed.innerHTML = '<p class="owner-journal-empty">No entries yet.</p>';
+    feed.innerHTML = isOwner ? '<p class="owner-journal-empty">No entries yet.</p>' : '';
     return;
   }
   feed.innerHTML = entries.map((e, i) => `
     <div class="owner-journal-entry">
       <div class="owner-journal-entry-header">
         <span class="owner-journal-entry-date">${new Date(e.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-        <button class="owner-journal-delete-btn" data-idx="${i}" title="Delete entry">✕</button>
+        ${isOwner ? `<button class="owner-journal-delete-btn" data-idx="${i}" title="Delete entry">✕</button>` : ''}
       </div>
       <div class="owner-journal-entry-text">${escHtml(e.text)}</div>
     </div>`).join('');
 
-  feed.querySelectorAll('.owner-journal-delete-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const idx = +btn.dataset.idx;
-      const updated = entries.filter((_, i) => i !== idx);
-      const { error } = await sb.from('settings').upsert(
-        { key: 'owner_journal', value: JSON.stringify(updated) },
-        { onConflict: 'key' }
-      );
-      if (error) { showBanner('Delete failed.'); return; }
-      entries = updated;
-      renderJournalFeed(entries);
+  if (isOwner) {
+    feed.querySelectorAll('.owner-journal-delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const idx = +btn.dataset.idx;
+        const updated = entries.filter((_, i) => i !== idx);
+        const { error } = await sb.from('settings').upsert(
+          { key: 'owner_journal', value: JSON.stringify(updated) },
+          { onConflict: 'key' }
+        );
+        if (error) { showBanner('Delete failed.'); return; }
+        entries = updated;
+        renderJournalFeed(entries);
+      });
     });
-  });
+  }
 }
 
 // ─── Manage Team Modal ────────────────────────────────────────────────────
@@ -918,6 +930,7 @@ async function loadHomeBuilderUpdates(rooms, user) {
 function renderHomeBuilderUpdates() {
   const feed = document.getElementById('home-builder-updates-feed');
   const isOwner = currentUser?.role === 'owner';
+  const isBuilder = currentUser?.role === 'builder';
   if (!feed) return;
 
   if (!homeBuilderUpdates.length) {
@@ -963,6 +976,13 @@ function renderHomeBuilderUpdates() {
          </div>`
       : '';
 
+    const updateControls = (isOwner || isBuilder)
+      ? `<div class="bu-update-controls">
+           ${isBuilder ? `<button class="bu-edit-btn" data-id="${escHtml(item.id)}">Edit</button>` : ''}
+           <button class="bu-delete-btn" data-id="${escHtml(item.id)}">Delete</button>
+         </div>`
+      : '';
+
     return `<div class="bu-entry" data-id="${escHtml(item.id)}">
       <div class="bu-entry-header">
         <span class="bu-from">Builder</span>
@@ -974,11 +994,58 @@ function renderHomeBuilderUpdates() {
       ${repliesHtml}
       ${replyForm}
       ${ownerActions}
+      ${updateControls}
     </div>`;
   }).join('');
 
   feed.querySelectorAll('.bu-thumb').forEach(img => {
     img.addEventListener('click', () => openLightbox(img.dataset.url));
+  });
+
+  feed.querySelectorAll('.bu-delete-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      const { error } = await sb.from('builder_updates').delete().eq('id', id);
+      if (error) { showBanner('Delete failed.'); return; }
+      homeBuilderUpdates = homeBuilderUpdates.filter(u => u.id !== id);
+      renderHomeBuilderUpdates();
+      showBanner('Update deleted.');
+    });
+  });
+
+  feed.querySelectorAll('.bu-edit-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const entry = homeBuilderUpdates.find(u => u.id === id);
+      if (!entry) return;
+      const entryEl = feed.querySelector(`.bu-entry[data-id="${CSS.escape(id)}"]`);
+      const msgEl = entryEl?.querySelector('.bu-message');
+      if (!msgEl) return;
+      const originalText = entry.message || entry.caption || '';
+      const editArea = document.createElement('div');
+      editArea.className = 'bu-edit-area';
+      editArea.innerHTML = `
+        <textarea class="bu-edit-textarea" rows="3"></textarea>
+        <div class="bu-edit-btns">
+          <button class="auth-btn-secondary bu-edit-cancel">Cancel</button>
+          <button class="btn-primary-small bu-edit-save">Save</button>
+        </div>`;
+      editArea.querySelector('.bu-edit-textarea').value = originalText;
+      msgEl.replaceWith(editArea);
+      editArea.querySelector('.bu-edit-textarea').focus();
+      editArea.querySelector('.bu-edit-cancel').addEventListener('click', () => renderHomeBuilderUpdates());
+      editArea.querySelector('.bu-edit-save').addEventListener('click', async () => {
+        const newText = editArea.querySelector('.bu-edit-textarea').value.trim();
+        if (!newText) return;
+        const saveBtn = editArea.querySelector('.bu-edit-save');
+        saveBtn.disabled = true;
+        const { error } = await sb.from('builder_updates').update({ message: newText }).eq('id', id);
+        if (error) { showBanner('Save failed.'); saveBtn.disabled = false; return; }
+        entry.message = newText;
+        renderHomeBuilderUpdates();
+        showBanner('Updated!');
+      });
+    });
   });
 
   if (isOwner) {

@@ -2494,6 +2494,16 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 .bu-file-names { font-size: 0.75rem; color: var(--stone); }
 .bu-empty { color: var(--stone); font-size: 0.875rem; font-style: italic; padding: 0.5rem 0; font-family: system-ui, sans-serif; }
 
+.bu-update-controls { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
+.bu-delete-btn { font-size: 0.75rem; padding: 3px 8px; background: none; color: var(--stone); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; transition: var(--transition); }
+.bu-delete-btn:hover { background: #fee2e2; color: #b91c1c; border-color: #fca5a5; }
+.bu-edit-btn { font-size: 0.75rem; padding: 3px 8px; background: none; color: var(--bark); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; transition: var(--transition); }
+.bu-edit-btn:hover { background: var(--tan); }
+.bu-edit-area { margin-bottom: 0.25rem; }
+.bu-edit-textarea { width: 100%; padding: 0.4rem 0.65rem; border: 1px solid var(--bark-light); border-radius: 6px; font-size: 0.875rem; font-family: system-ui, sans-serif; resize: vertical; box-sizing: border-box; }
+.bu-edit-textarea:focus { outline: none; }
+.bu-edit-btns { display: flex; gap: 0.4rem; margin-top: 0.35rem; }
+
 /* ─── Gallery Page ──────────────────────────────────────────────── */
 .gallery-page { padding: 1.5rem 0 3rem; }
 .gallery-page .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
