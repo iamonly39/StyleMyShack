@@ -893,6 +893,7 @@ function closeLightbox() {
 
 // ─── Home Builder Updates ─────────────────────────────────────────────────
 let homeBuilderUpdates = [];
+let homeRoomMap = {};
 
 async function loadHomeBuilderUpdates(rooms, user) {
   const { data, error } = await sb.from('builder_updates')
@@ -902,96 +903,226 @@ async function loadHomeBuilderUpdates(rooms, user) {
   if (error) return;
 
   homeBuilderUpdates = data || [];
+  rooms.forEach(r => { homeRoomMap[r.id] = r.name; });
 
-  const section = document.getElementById('home-builder-updates-section');
-  const uploadArea = document.getElementById('home-builder-updates-upload');
-  if (section) section.style.display = '';
-  if (uploadArea) uploadArea.style.display = '';
+  document.getElementById('home-builder-updates-section').style.display = '';
 
-  renderHomeBuilderUpdates(rooms, user);
-  setupHomeBuilderUpdateUpload(rooms, user);
+  if (user?.role === 'builder') {
+    document.getElementById('home-add-builder-update-btn').style.display = '';
+  }
+
+  renderHomeBuilderUpdates();
+  setupHomeBuilderUpdateBtn();
 }
 
-function renderHomeBuilderUpdates(rooms, user) {
-  const grid = document.getElementById('home-builder-updates-grid');
-  if (!grid) return;
-
-  const roomMap = {};
-  rooms.forEach(r => { roomMap[r.id] = r.name; });
+function renderHomeBuilderUpdates() {
+  const feed = document.getElementById('home-builder-updates-feed');
+  const isOwner = currentUser?.role === 'owner';
+  if (!feed) return;
 
   if (!homeBuilderUpdates.length) {
-    grid.innerHTML = '<p class="builder-updates-placeholder">No updates yet.</p>';
+    feed.innerHTML = '<p class="bu-empty">No updates yet.</p>';
     return;
   }
 
-  grid.innerHTML = homeBuilderUpdates.map(item => {
-    const url = sb.storage.from('room-photos').getPublicUrl(item.storage_path).data.publicUrl;
-    const roomLabel = item.room_id ? escHtml(roomMap[item.room_id] || item.room_id) : 'Project';
-    const caption = item.caption ? `<div class="builder-update-caption">${escHtml(item.caption)}</div>` : '';
-    const promote = (user?.role === 'owner' && !item.promoted_to_gallery)
-      ? `<button class="builder-promote-btn" data-update-id="${escHtml(item.id)}">Promote to gallery</button>`
-      : item.promoted_to_gallery ? `<span class="builder-in-gallery">In gallery ✓</span>` : '';
-    return `<div class="builder-update-card">
-      <img class="builder-update-img" src="${escHtml(url)}" alt="${escHtml(item.caption || '')}" data-url="${escHtml(url)}" />
-      ${caption}
-      <div class="builder-update-body">
-        <div class="builder-update-meta">${roomLabel} · ${escHtml(item.uploaded_by)} · ${formatDate(item.created_at)}</div>
-        ${promote}
+  feed.innerHTML = homeBuilderUpdates.map(item => {
+    const photoPaths = item.photo_paths?.length ? item.photo_paths : (item.storage_path ? [item.storage_path] : []);
+    const photosHtml = photoPaths.length
+      ? `<div class="bu-photos">${photoPaths.map(p => {
+          const url = sb.storage.from('room-photos').getPublicUrl(p).data.publicUrl;
+          return `<img class="bu-thumb" src="${escHtml(url)}" data-url="${escHtml(url)}" alt="Builder photo">`;
+        }).join('')}</div>`
+      : '';
+
+    const roomTag = item.room_id
+      ? `<span class="bu-room-tag">${escHtml(homeRoomMap[item.room_id] || item.room_id)}</span>`
+      : '';
+    const msgText = item.message || item.caption || '';
+    const msgHtml = msgText ? `<div class="bu-message">${escHtml(msgText)}</div>` : '';
+
+    const replies = item.replies || [];
+    const repliesHtml = replies.map(r => `
+      <div class="bu-reply">
+        <span class="bu-reply-label">Owner</span>
+        <span class="bu-reply-text">${escHtml(r.text)}</span>
+        <span class="bu-reply-date">${formatDate(r.at)}</span>
+      </div>`).join('');
+
+    let ownerActions = '';
+    if (isOwner) {
+      const promoteBtn = item.promoted_to_gallery || !photoPaths.length
+        ? (item.promoted_to_gallery ? '<span class="builder-in-gallery">In Gallery ✓</span>' : '')
+        : `<button class="builder-promote-btn" data-id="${escHtml(item.id)}">Promote to Gallery</button>`;
+      ownerActions = `<div class="bu-owner-actions">${promoteBtn}</div>`;
+    }
+
+    const replyForm = isOwner
+      ? `<div class="bu-reply-form" id="hbrf-${escHtml(item.id)}">
+           <textarea class="bu-reply-input" placeholder="Reply…" rows="2"></textarea>
+           <button class="btn-primary-small bu-reply-send" data-id="${escHtml(item.id)}">Send Reply</button>
+         </div>`
+      : '';
+
+    return `<div class="bu-entry" data-id="${escHtml(item.id)}">
+      <div class="bu-entry-header">
+        <span class="bu-from">Builder</span>
+        ${roomTag}
+        <span class="bu-date">${formatDate(item.created_at)}</span>
       </div>
+      ${msgHtml}
+      ${photosHtml}
+      ${repliesHtml}
+      ${replyForm}
+      ${ownerActions}
     </div>`;
   }).join('');
 
-  grid.querySelectorAll('.builder-update-img').forEach(img => {
+  feed.querySelectorAll('.bu-thumb').forEach(img => {
     img.addEventListener('click', () => openLightbox(img.dataset.url));
   });
 
-  grid.querySelectorAll('.builder-promote-btn').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const id = btn.dataset.updateId;
-      const { error } = await sb.from('builder_updates').update({ promoted_to_gallery: true }).eq('id', id);
-      if (error) { showBanner('Failed — try again.'); return; }
-      const item = homeBuilderUpdates.find(u => u.id === id);
-      if (item) item.promoted_to_gallery = true;
-      renderHomeBuilderUpdates(rooms, user);
-      showBanner('Added to gallery!');
+  if (isOwner) {
+    feed.querySelectorAll('.builder-promote-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        const { error } = await sb.from('builder_updates').update({ promoted_to_gallery: true }).eq('id', id);
+        if (error) { showBanner('Failed — try again.'); return; }
+        const item = homeBuilderUpdates.find(u => u.id === id);
+        if (item) item.promoted_to_gallery = true;
+        renderHomeBuilderUpdates();
+        showBanner('Added to gallery!');
+      });
     });
-  });
+
+    feed.querySelectorAll('.bu-reply-send').forEach(btn => {
+      btn.addEventListener('click', () => sendHomeOwnerReply(btn.dataset.id, btn));
+    });
+  }
 }
 
-function setupHomeBuilderUpdateUpload(rooms, user) {
-  const fileInput = document.getElementById('home-builder-update-file');
-  if (!fileInput || fileInput.dataset.listenerAttached) return;
-  fileInput.dataset.listenerAttached = 'true';
+function setupHomeBuilderUpdateBtn() {
+  const btn = document.getElementById('home-add-builder-update-btn');
+  if (!btn || btn.dataset.listenerAttached) return;
+  btn.dataset.listenerAttached = 'true';
+  btn.addEventListener('click', openHomeBuilderUpdateModal);
+}
 
-  fileInput.addEventListener('change', async () => {
-    const files = Array.from(fileInput.files);
-    if (!files.length) return;
+function openHomeBuilderUpdateModal() {
+  let modal = document.getElementById('home-builder-update-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'home-builder-update-modal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal">
+        <h3>Add Construction Update</h3>
+        <textarea id="hbum-text" class="bu-compose-textarea" placeholder="What's the update?" rows="4"></textarea>
+        <div class="bu-attach-row">
+          <label class="bu-attach-label">
+            + Attach Photos (optional)
+            <input type="file" id="hbum-file" accept="image/*" multiple class="hidden-input">
+          </label>
+          <span id="hbum-file-names" class="bu-file-names"></span>
+        </div>
+        <div id="hbum-error" class="modal-error"></div>
+        <div class="manage-team-close-row" style="justify-content:flex-end;gap:0.5rem;">
+          <button id="hbum-cancel" class="auth-btn-secondary">Cancel</button>
+          <button id="hbum-submit" class="btn-primary-small">Post Update</button>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
 
-    const caption = document.getElementById('home-builder-update-caption')?.value.trim() || '';
-    fileInput.disabled = true;
-    showBanner('Uploading…');
+    modal.addEventListener('click', e => { if (e.target === modal) closeHomeBuilderUpdateModal(); });
+    document.getElementById('hbum-cancel').addEventListener('click', closeHomeBuilderUpdateModal);
+    document.getElementById('hbum-file').addEventListener('change', () => {
+      const names = Array.from(document.getElementById('hbum-file').files).map(f => f.name).join(', ');
+      document.getElementById('hbum-file-names').textContent = names || '';
+    });
+    document.getElementById('hbum-submit').addEventListener('click', submitHomeBuilderUpdate);
+  }
+  modal.style.display = 'flex';
+  document.getElementById('hbum-text').value = '';
+  document.getElementById('hbum-file').value = '';
+  document.getElementById('hbum-file-names').textContent = '';
+  document.getElementById('hbum-error').style.display = 'none';
+  setTimeout(() => document.getElementById('hbum-text')?.focus(), 50);
+}
 
-    for (const file of files) {
-      const path = `project/builder-updates/${Date.now()}-${file.name}`;
-      const { error: upErr } = await sb.storage.from('room-photos').upload(path, file);
-      if (upErr) { showBanner('Upload failed — try again.'); continue; }
+function closeHomeBuilderUpdateModal() {
+  const modal = document.getElementById('home-builder-update-modal');
+  if (modal) modal.style.display = 'none';
+}
 
-      const { error: dbErr } = await sb.from('builder_updates').insert({
-        room_id: null,
-        storage_path: path,
-        caption,
-        uploaded_by: currentUser.email
-      });
-      if (dbErr) { showBanner('Save failed — try again.'); continue; }
-    }
+async function submitHomeBuilderUpdate() {
+  const textEl    = document.getElementById('hbum-text');
+  const fileEl    = document.getElementById('hbum-file');
+  const errorEl   = document.getElementById('hbum-error');
+  const submitBtn = document.getElementById('hbum-submit');
+  const message   = textEl.value.trim();
 
-    fileInput.disabled = false;
-    fileInput.value = '';
-    const captionInput = document.getElementById('home-builder-update-caption');
-    if (captionInput) captionInput.value = '';
-    showBanner('Update posted!');
-    loadHomeBuilderUpdates(rooms, user);
+  if (!message) {
+    errorEl.textContent = 'Please enter a message before posting.';
+    errorEl.style.display = 'block';
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Posting…';
+
+  const files = Array.from(fileEl.files);
+  const photoPaths = [];
+
+  for (const file of files) {
+    const path = `project/builder-updates/${Date.now()}-${file.name}`;
+    const { error: upErr } = await sb.storage.from('room-photos').upload(path, file);
+    if (upErr) { showBanner('Photo upload failed — try again.'); submitBtn.disabled = false; submitBtn.textContent = 'Post Update'; return; }
+    photoPaths.push(path);
+  }
+
+  const { error: dbErr } = await sb.from('builder_updates').insert({
+    room_id:      null,
+    storage_path: photoPaths[0] || null,
+    photo_paths:  photoPaths,
+    message,
+    uploaded_by:  currentUser.email,
+    replies:      []
   });
+
+  if (dbErr) {
+    errorEl.textContent = 'Failed to post — try again.';
+    errorEl.style.display = 'block';
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Post Update';
+    return;
+  }
+
+  closeHomeBuilderUpdateModal();
+  showBanner('Update posted!');
+  loadHomeBuilderUpdates(Object.entries(homeRoomMap).map(([id, name]) => ({ id, name })), currentUser);
+}
+
+async function sendHomeOwnerReply(updateId, btn) {
+  const form = document.getElementById('hbrf-' + updateId);
+  if (!form) return;
+  const textarea = form.querySelector('.bu-reply-input');
+  const text = textarea.value.trim();
+  if (!text) return;
+
+  btn.disabled = true;
+
+  const entry = homeBuilderUpdates.find(u => u.id === updateId);
+  const existing = entry?.replies || [];
+  const updated = [...existing, { text, at: new Date().toISOString() }];
+
+  const { error } = await sb.from('builder_updates')
+    .update({ replies: updated })
+    .eq('id', updateId);
+
+  if (error) { showBanner('Reply failed — try again.'); btn.disabled = false; return; }
+
+  if (entry) entry.replies = updated;
+  renderHomeBuilderUpdates();
+  showBanner('Reply sent.');
 }
 
 function formatDate(isoString) {

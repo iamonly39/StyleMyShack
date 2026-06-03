@@ -1,7 +1,8 @@
 import { test, expect } from '@playwright/test';
-import { setupMocks, MOCK_ROOMS, MOCK_SETTINGS } from './fixtures.js';
+import { setupMocks, setupOwnerAuth, MOCK_ROOMS, MOCK_SETTINGS } from './fixtures.js';
 
 test.beforeEach(async ({ page }) => {
+  await setupOwnerAuth(page);
   await setupMocks(page);
   await page.goto('/');
 });

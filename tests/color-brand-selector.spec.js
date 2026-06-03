@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
   setupMocks,
+  setupOwnerAuth,
   setupColorMocks,
   MOCK_RECS_WITH_SWATCHES,
 } from './fixtures.js';
@@ -9,12 +10,19 @@ const SUPABASE_URL = 'https://yoikyxyrkcnvszogsyut.supabase.co';
 
 // Enter edit mode, open the inline swatch editor for swatch 0-0.
 async function openSwatchEditor(page) {
+  // .rec-section only exists after init()'s async data loading and renderRecommendations() run
+  await page.locator('.rec-section').first().waitFor({ state: 'visible' });
   await page.locator('#edit-toggle').click();
-  await page.locator('[data-open-swatch="0-0"]').click();
+  // #save-recs-btn only appears once the edit form is fully rendered
+  await page.locator('#save-recs-btn').waitFor({ state: 'visible' });
+  const swatchBtn = page.locator('[data-open-swatch="0-0"]');
+  await swatchBtn.waitFor({ state: 'visible' });
+  await swatchBtn.click();
   await expect(page.locator('.swatch-inline-edit')).toBeVisible();
 }
 
 test.beforeEach(async ({ page }) => {
+  await setupOwnerAuth(page);
   await setupMocks(page);
   await setupColorMocks(page);
 

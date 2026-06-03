@@ -2512,8 +2512,9 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 
 /* ─── Home Builder Updates ──────────────────────────────────────── */
 .home-builder-updates-section { background: var(--cream); padding: 2rem 0 2.5rem; border-top: 1px solid var(--border); }
-.home-builder-updates-title { font-size: 1.1rem; font-weight: 700; color: var(--bark); margin: 0 0 1rem; }
-.home-builder-updates-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; margin-top: 1rem; }
+.home-builder-updates-title { font-size: 1.1rem; font-weight: 700; color: var(--bark); margin: 0; }
+.home-builder-updates-section .builder-updates-feed { display: flex; flex-direction: column; gap: 0.75rem; }
+.bu-room-tag { font-size: 0.78rem; font-weight: 600; color: var(--bark); background: var(--tan); border-radius: 4px; padding: 0.1rem 0.45rem; }
 
 /* ─── Comments ──────────────────────────────────────────────────── */
 .comments-section { margin: 2rem 0; }

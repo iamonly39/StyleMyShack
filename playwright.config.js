@@ -16,7 +16,7 @@ module.exports = defineConfig({
     },
   ],
   webServer: {
-    command: 'npx live-server --port=3000 --no-browser',
+    command: 'npx http-server . -p 3000 -c-1 --silent',
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
   },
