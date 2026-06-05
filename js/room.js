@@ -11,6 +11,7 @@ let inlineEditItem = null;      // { cat, idx } | null
 let editingGeneralNotes = false;
 let editingSwatch = null;       // { si, swi } | null
 let builderUpdates = [];
+let builderGalleryPaths = [];
 
 // ─── Section Order (localStorage) ─────────────────────────────────────────
 function getSectionOrder() {
@@ -499,6 +500,29 @@ function setupUploadListeners() {
       input.value = '';
       showBanner('Uploaded!');
       renderGallery(tab);
+    });
+  });
+
+  document.querySelectorAll('.from-gallery-btn').forEach(btn => {
+    const tab = btn.dataset.tab;
+    btn.addEventListener('click', () => {
+      openGalleryPicker(async selected => {
+        if (!selected.length) return;
+        showBanner('Adding…');
+        for (const item of selected) {
+          await sb.from('photos').insert({
+            room_id:      roomData.id,
+            tab,
+            storage_path: item.storage_path,
+            is_pinned:    false,
+            sort_order:   Date.now(),
+            in_gallery:   true
+          });
+        }
+        showBanner('Added!');
+        renderGallery(tab);
+        updateTabCounts(roomData.id);
+      });
     });
   });
 }
@@ -1527,6 +1551,7 @@ function setupBuilderUpdateBtn() {
 }
 
 function openBuilderUpdateModal() {
+  builderGalleryPaths = [];
   let modal = document.getElementById('builder-update-modal');
   if (!modal) {
     modal = document.createElement('div');
@@ -1541,6 +1566,7 @@ function openBuilderUpdateModal() {
             + Attach Photos (optional)
             <input type="file" id="bum-file" accept="image/*" multiple class="hidden-input">
           </label>
+          <button type="button" class="from-gallery-btn" id="bum-from-gallery">From gallery</button>
           <span id="bum-file-names" class="bu-file-names"></span>
         </div>
         <div id="bum-error" class="modal-error"></div>
@@ -1556,6 +1582,15 @@ function openBuilderUpdateModal() {
     modal.querySelector('#bum-file').addEventListener('change', () => {
       const names = Array.from(modal.querySelector('#bum-file').files).map(f => f.name).join(', ');
       modal.querySelector('#bum-file-names').textContent = names;
+    });
+    modal.querySelector('#bum-from-gallery').addEventListener('click', () => {
+      openGalleryPicker(selected => {
+        builderGalleryPaths = selected.map(s => s.storage_path);
+        const namesEl = modal.querySelector('#bum-file-names');
+        const existing = Array.from(modal.querySelector('#bum-file').files).map(f => f.name).join(', ');
+        const galleryLabel = builderGalleryPaths.length ? `${builderGalleryPaths.length} from gallery` : '';
+        namesEl.textContent = [existing, galleryLabel].filter(Boolean).join(', ');
+      });
     });
   }
 
@@ -1599,7 +1634,7 @@ async function submitBuilderUpdate() {
   submitBtn.textContent = 'Posting…';
 
   const files = Array.from(fileInput.files);
-  const photoPaths = [];
+  const photoPaths = [...builderGalleryPaths];
 
   for (const file of files) {
     const path = `${roomData.id}/builder-updates/${Date.now()}-${file.name}`;

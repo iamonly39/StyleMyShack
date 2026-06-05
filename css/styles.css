@@ -2592,3 +2592,20 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 .whats-new-caption { font-size: 0.8rem; color: var(--stone); margin-top: 0.15rem; }
 .whats-new-meta { font-size: 0.75rem; color: var(--stone); margin-top: 0.15rem; }
 .whats-new-empty { font-size: 0.875rem; color: var(--stone); font-style: italic; }
+
+/* ─── Gallery Picker ──────────────────────────────────────────────── */
+.gp-modal-card { width: min(90vw, 680px); max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; }
+.gp-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem 0.75rem; border-bottom: 1px solid var(--border); }
+.gp-header h3 { margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--bark); }
+.gp-grid { flex: 1; overflow-y: auto; padding: 1rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 0.6rem; }
+.gp-thumb { position: relative; border-radius: 8px; overflow: hidden; cursor: pointer; border: 2px solid transparent; aspect-ratio: 1; background: var(--cream); }
+.gp-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.gp-thumb:hover { border-color: var(--bark-light); }
+.gp-selected { border-color: var(--bark) !important; }
+.gp-check { display: none; position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; background: var(--bark); color: white; border-radius: 50%; font-size: 11px; align-items: center; justify-content: center; font-weight: 700; }
+.gp-selected .gp-check { display: flex; }
+.gp-label { position: absolute; bottom: 0; left: 0; right: 0; font-size: 0.65rem; color: white; background: rgba(0,0,0,0.45); padding: 2px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gp-footer { display: flex; justify-content: flex-end; gap: 0.6rem; padding: 0.75rem 1.25rem; border-top: 1px solid var(--border); }
+.gp-empty { color: var(--stone); font-size: 0.875rem; font-style: italic; text-align: center; padding: 1.5rem; grid-column: 1 / -1; }
+.from-gallery-btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.55rem 1.1rem; background: var(--cream); border: 1px solid var(--bark-light); border-radius: 8px; color: var(--bark); font-family: system-ui, sans-serif; font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: var(--transition); }
+.from-gallery-btn:hover { background: var(--bark-light); color: white; }

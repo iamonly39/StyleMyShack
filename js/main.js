@@ -55,6 +55,8 @@ async function init() {
   if (user?.role !== 'owner') {
     const uploadLabel = document.querySelector('.home-carousel-upload');
     if (uploadLabel) uploadLabel.style.display = 'none';
+    const fromGalleryBtn = document.getElementById('carousel-from-gallery-btn');
+    if (fromGalleryBtn) fromGalleryBtn.style.display = 'none';
   }
 
   // Cabin name
@@ -428,6 +430,33 @@ function setupSitePhotoUpload() {
     startHomeTimer();
     showBanner('Uploaded!');
   });
+
+  // "From gallery" button next to the carousel upload input (owner only)
+  const fromGalleryBtn = document.getElementById('carousel-from-gallery-btn');
+  if (fromGalleryBtn) {
+    fromGalleryBtn.addEventListener('click', () => {
+      openGalleryPicker(async selected => {
+        if (!selected.length) return;
+        showBanner('Adding…');
+        for (const item of selected) {
+          const { data: row } = await sb.from('site_photos').insert({
+            storage_path: item.storage_path,
+            sort_order:   Date.now()
+          }).select().single();
+          if (row) {
+            sitePhotos.push({
+              ...row,
+              publicUrl: item.publicUrl
+            });
+          }
+        }
+        homeSlide = sitePhotos.length - 1;
+        renderHomeCarousel();
+        startHomeTimer();
+        showBanner('Added to carousel!');
+      });
+    });
+  }
 }
 
 // ─── Owner Journal (private dated notes) ──────────────────────────────────
@@ -992,6 +1021,7 @@ function closeLightbox() {
 // ─── Home Builder Updates ─────────────────────────────────────────────────
 let homeBuilderUpdates = [];
 let homeRoomMap = {};
+let homeBuilderGalleryPaths = [];
 
 async function loadHomeBuilderUpdates(rooms, user) {
   const { data, error } = await sb.from('builder_updates')
@@ -1161,6 +1191,7 @@ function setupHomeBuilderUpdateBtn() {
 }
 
 function openHomeBuilderUpdateModal() {
+  homeBuilderGalleryPaths = [];
   let modal = document.getElementById('home-builder-update-modal');
   if (!modal) {
     modal = document.createElement('div');
@@ -1175,6 +1206,7 @@ function openHomeBuilderUpdateModal() {
             + Attach Photos (optional)
             <input type="file" id="hbum-file" accept="image/*" multiple class="hidden-input">
           </label>
+          <button type="button" class="from-gallery-btn" id="hbum-from-gallery">From gallery</button>
           <span id="hbum-file-names" class="bu-file-names"></span>
         </div>
         <div id="hbum-error" class="modal-error"></div>
@@ -1189,7 +1221,16 @@ function openHomeBuilderUpdateModal() {
     document.getElementById('hbum-cancel').addEventListener('click', closeHomeBuilderUpdateModal);
     document.getElementById('hbum-file').addEventListener('change', () => {
       const names = Array.from(document.getElementById('hbum-file').files).map(f => f.name).join(', ');
-      document.getElementById('hbum-file-names').textContent = names || '';
+      const galleryLabel = homeBuilderGalleryPaths.length ? `${homeBuilderGalleryPaths.length} from gallery` : '';
+      document.getElementById('hbum-file-names').textContent = [names, galleryLabel].filter(Boolean).join(', ');
+    });
+    document.getElementById('hbum-from-gallery').addEventListener('click', () => {
+      openGalleryPicker(selected => {
+        homeBuilderGalleryPaths = selected.map(s => s.storage_path);
+        const fileNames = Array.from(document.getElementById('hbum-file').files).map(f => f.name).join(', ');
+        const galleryLabel = homeBuilderGalleryPaths.length ? `${homeBuilderGalleryPaths.length} from gallery` : '';
+        document.getElementById('hbum-file-names').textContent = [fileNames, galleryLabel].filter(Boolean).join(', ');
+      });
     });
     document.getElementById('hbum-submit').addEventListener('click', submitHomeBuilderUpdate);
   }
@@ -1223,7 +1264,7 @@ async function submitHomeBuilderUpdate() {
   submitBtn.textContent = 'Posting…';
 
   const files = Array.from(fileEl.files);
-  const photoPaths = [];
+  const photoPaths = [...homeBuilderGalleryPaths];
 
   for (const file of files) {
     const path = `project/builder-updates/${Date.now()}-${file.name}`;

@@ -6,10 +6,11 @@ let activeFilters = new Set();
 async function init() {
   await waitForAuth();
 
-  const [roomsRes, photosRes, updatesRes] = await Promise.all([
+  const [roomsRes, photosRes, updatesRes, sitePhotosRes] = await Promise.all([
     sb.from('rooms').select('id, name, emoji').order('sort_order'),
     sb.from('photos').select('*').eq('in_gallery', true).order('sort_order'),
-    sb.from('builder_updates').select('*').eq('promoted_to_gallery', true).order('created_at')
+    sb.from('builder_updates').select('*').eq('promoted_to_gallery', true).order('created_at'),
+    sb.from('site_photos').select('*').eq('in_gallery', true).order('sort_order'),
   ]);
 
   if (roomsRes.error || photosRes.error || updatesRes.error) {
@@ -17,9 +18,10 @@ async function init() {
     return;
   }
 
-  const rooms   = roomsRes.data   || [];
-  const photos  = photosRes.data  || [];
-  const updates = updatesRes.data || [];
+  const rooms      = roomsRes.data      || [];
+  const photos     = photosRes.data     || [];
+  const updates    = updatesRes.data    || [];
+  const sitePhotos = sitePhotosRes.data || [];
 
   // Build a room lookup: id → { name, emoji, order }
   const roomMap = {};
@@ -36,6 +38,20 @@ async function init() {
       url:       sb.storage.from('room-photos').getPublicUrl(p.storage_path).data.publicUrl,
       caption:   null,
       source:    'photo'
+    });
+  });
+
+  // Merge site (carousel) photos — shown as "Project" at the top of the gallery
+  sitePhotos.forEach(p => {
+    allPhotos.push({
+      id:        p.id,
+      roomId:    '__site__',
+      roomName:  'Project',
+      roomOrder: -1,
+      url:       sb.storage.from('room-photos').getPublicUrl(p.storage_path).data.publicUrl,
+      caption:   null,
+      source:    'site_photo',
+      _siteId:   p.id,
     });
   });
 
@@ -115,6 +131,8 @@ function renderGrid() {
     let ownerControls = '';
     if (isOwner && photo.source === 'photo') {
       ownerControls = `<button class="gallery-remove-btn" data-photo-id="${escHtml(String(photo.id))}">Remove from gallery</button>`;
+    } else if (isOwner && photo.source === 'site_photo') {
+      ownerControls = `<button class="gallery-remove-btn" data-site-id="${escHtml(String(photo._siteId))}">Remove from gallery</button>`;
     } else if (isOwner && photo.source === 'builder_update') {
       ownerControls = `<span class="builder-in-gallery">In gallery ✓</span>`;
     }
@@ -134,18 +152,19 @@ function renderGrid() {
     img.addEventListener('click', () => openGalleryLightbox(filtered, i));
   });
 
-  // Remove-from-gallery listeners (owner, photos table only)
+  // Remove-from-gallery listeners (owner only)
   if (isOwner) {
     grid.querySelectorAll('.gallery-remove-btn').forEach(btn => {
       btn.addEventListener('click', async () => {
-        const photoId = btn.dataset.photoId;
-        const { error } = await sb.from('photos').update({ in_gallery: false }).eq('id', photoId);
-        if (error) {
-          showBanner('Failed to remove — try again.');
-          return;
+        if (btn.dataset.photoId) {
+          const { error } = await sb.from('photos').update({ in_gallery: false }).eq('id', btn.dataset.photoId);
+          if (error) { showBanner('Failed to remove — try again.'); return; }
+          allPhotos = allPhotos.filter(p => String(p.id) !== btn.dataset.photoId);
+        } else if (btn.dataset.siteId) {
+          const { error } = await sb.from('site_photos').update({ in_gallery: false }).eq('id', btn.dataset.siteId);
+          if (error) { showBanner('Failed to remove — try again.'); return; }
+          allPhotos = allPhotos.filter(p => String(p._siteId) !== btn.dataset.siteId);
         }
-        // Remove from local state and re-render
-        allPhotos = allPhotos.filter(p => String(p.id) !== photoId);
         renderGrid();
         showBanner('Removed from gallery.');
       });
