@@ -21,20 +21,21 @@ async function init() {
   const photos  = photosRes.data  || [];
   const updates = updatesRes.data || [];
 
-  // Build a room lookup: id → { name, emoji }
+  // Build a room lookup: id → { name, emoji, order }
   const roomMap = {};
-  rooms.forEach(r => { roomMap[r.id] = r; });
+  rooms.forEach((r, i) => { roomMap[r.id] = { ...r, order: i }; });
 
   // Merge owner photos
   photos.forEach(p => {
     const room = roomMap[p.room_id];
     allPhotos.push({
-      id:       p.id,
-      roomId:   p.room_id,
-      roomName: room ? room.name : p.room_id,
-      url:      sb.storage.from('room-photos').getPublicUrl(p.storage_path).data.publicUrl,
-      caption:  null,
-      source:   'photo'
+      id:        p.id,
+      roomId:    p.room_id,
+      roomName:  room ? room.name : p.room_id,
+      roomOrder: room ? room.order : 9999,
+      url:       sb.storage.from('room-photos').getPublicUrl(p.storage_path).data.publicUrl,
+      caption:   null,
+      source:    'photo'
     });
   });
 
@@ -46,12 +47,13 @@ async function init() {
     if (!paths.length) return; // text-only updates have no gallery photos
     paths.forEach((path, i) => {
       allPhotos.push({
-        id:       `${u.id}-${i}`,
-        roomId:   u.room_id,
-        roomName: room ? room.name : u.room_id,
-        url:      sb.storage.from('room-photos').getPublicUrl(path).data.publicUrl,
-        caption:  caption,
-        source:   'builder_update'
+        id:        `${u.id}-${i}`,
+        roomId:    u.room_id,
+        roomName:  room ? room.name : u.room_id,
+        roomOrder: room ? room.order : 9999,
+        url:       sb.storage.from('room-photos').getPublicUrl(path).data.publicUrl,
+        caption:   caption,
+        source:    'builder_update'
       });
     });
   });
@@ -97,7 +99,7 @@ function renderGrid() {
   const isOwner = currentUser?.role === 'owner';
 
   const filtered = activeFilters.size === 0
-    ? allPhotos
+    ? [...allPhotos].sort((a, b) => a.roomOrder - b.roomOrder)
     : allPhotos.filter(p => activeFilters.has(p.roomId));
 
   if (!filtered.length) {
