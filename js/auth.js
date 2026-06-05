@@ -185,10 +185,7 @@ async function handleSignIn() {
 
   if (TEST_MODE) {
     localStorage.setItem('test_mode_email', email);
-    const role = await resolveRole(email);
-    currentUser = { email, role };
-    renderAuthWidget();
-    closeSignInModal();
+    window.location.reload();
     return;
   }
 

@@ -1037,7 +1037,7 @@ function renderHomeBuilderUpdates() {
       ? `<span class="bu-room-tag">${escHtml(homeRoomMap[item.room_id] || item.room_id)}</span>`
       : '';
     const msgText = item.message || item.caption || '';
-    const msgHtml = msgText ? `<div class="bu-message">${escHtml(msgText)}</div>` : '';
+    const msgHtml = `<div class="bu-message">${escHtml(msgText)}</div>`;
 
     const replies = item.replies || [];
     const repliesHtml = replies.map(r => `

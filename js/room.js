@@ -1411,7 +1411,7 @@ function renderBuilderUpdates() {
 
     // Message text — prefer new message field, fall back to old caption
     const msgText = item.message || item.caption || '';
-    const msgHtml = msgText ? `<div class="bu-message">${escHtml(msgText)}</div>` : '';
+    const msgHtml = `<div class="bu-message">${escHtml(msgText)}</div>`;
 
     // Owner replies
     const replies = item.replies || [];
