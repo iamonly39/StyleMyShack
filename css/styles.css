@@ -53,6 +53,9 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   color: var(--cream);
   padding: 1.25rem 0;
   box-shadow: 0 2px 12px var(--shadow);
+  position: sticky;
+  top: 0;
+  z-index: 60;
 }
 
 .site-header .container {
@@ -95,6 +98,12 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 }
 
 .header-nav-link:hover { color: var(--cream); }
+
+.header-nav-link.active {
+  color: var(--cream);
+  border-bottom: 2px solid var(--sage-light);
+  padding-bottom: 3px;
+}
 
 /* ─── Hero / Page Title ──────────────────────────────────────────────────── */
 .page-hero {
@@ -1250,7 +1259,11 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
   scrollbar-width: thin;
   scrollbar-color: var(--bark-light) transparent;
   align-items: flex-start;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
 }
+
+.room-nav-item { scroll-snap-align: start; }
 
 .room-nav-strip::-webkit-scrollbar { height: 4px; }
 .room-nav-strip::-webkit-scrollbar-thumb { background: var(--bark-light); border-radius: 2px; }
@@ -2184,7 +2197,47 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .paint-swatches { grid-template-columns: 1fr; }
-  .photo-tabs { font-size: 0.75rem; }
+
+  /* Header: wrap into a tidy two-row layout instead of squashing one row.
+     Row 1 = back / logo / gallery (space-between); Row 2 = auth widget. */
+  .site-header { padding: 0.85rem 0; }
+  .site-header .container {
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem 0.75rem;
+  }
+  .site-header .logo { font-size: 1.3rem; }
+  .header-back { margin-right: 0; }
+  .header-nav-link { margin-left: 0; }
+  .auth-widget {
+    order: 5;
+    width: 100%;
+    margin-left: 0;
+    justify-content: center;
+  }
+
+  /* Photo tabs: scroll horizontally with readable, tappable labels
+     instead of forcing four equal columns that truncate. */
+  .photo-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .photo-tabs::-webkit-scrollbar { display: none; }
+  .photo-tab {
+    flex: 0 0 auto;
+    padding: 0.85rem 1.1rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+}
+
+/* Comfortable touch targets on coarse pointers (touch devices) */
+@media (pointer: coarse) {
+  .header-back,
+  .header-nav-link { padding: 0.35rem 0; }
+  .home-carousel-dot { width: 12px; height: 12px; }
+  .photo-tab { min-height: 44px; }
 }
 
 /* ─── Auth Widget ─────────────────────────────────────────────────────────── */
