@@ -44,13 +44,19 @@ async function resolveRole(email) {
 }
 
 // ── Auth widget rendering ─────────────────────────────────────────────────────
+let _closeAuthPanel = null;
+
 function renderAuthWidget() {
   const container = document.querySelector('.site-header .container');
   if (!container) return;
 
-  // Remove existing widget if present
+  // Remove existing widget and clean up previous outside-click handler
   const existing = document.getElementById('auth-widget');
   if (existing) existing.remove();
+  if (_closeAuthPanel) {
+    document.removeEventListener('click', _closeAuthPanel);
+    _closeAuthPanel = null;
+  }
 
   const widget = document.createElement('div');
   widget.id = 'auth-widget';
@@ -61,11 +67,36 @@ function renderAuthWidget() {
       ? currentUser.email.slice(0, 20) + '…'
       : currentUser.email;
     const safeRole = ['owner', 'builder', 'viewer'].includes(currentUser.role) ? currentUser.role : 'viewer';
+
+    // Trigger (mobile dot) + panel (desktop row / mobile dropdown)
     widget.innerHTML = `
-      <span class="auth-email">${escHtml(emailDisplay)}</span>
-      <span class="auth-role-badge auth-role-${safeRole}">${escHtml(currentUser.role)}</span>
-      <button id="auth-sign-out" class="auth-signout-btn">Sign out</button>
+      <button class="auth-menu-trigger" aria-label="Account menu" aria-expanded="false">
+        <span class="auth-trigger-dot auth-role-${safeRole}"></span>
+      </button>
+      <div class="auth-menu-panel">
+        <span class="auth-email">${escHtml(emailDisplay)}</span>
+        <span class="auth-role-badge auth-role-${safeRole}">${escHtml(currentUser.role)}</span>
+        <button id="auth-sign-out" class="auth-signout-btn">Sign out</button>
+      </div>
     `;
+
+    const trigger = widget.querySelector('.auth-menu-trigger');
+    const panel   = widget.querySelector('.auth-menu-panel');
+
+    trigger.addEventListener('click', e => {
+      e.stopPropagation();
+      const open = panel.classList.toggle('open');
+      trigger.setAttribute('aria-expanded', String(open));
+    });
+
+    _closeAuthPanel = e => {
+      if (!widget.contains(e.target)) {
+        panel.classList.remove('open');
+        trigger.setAttribute('aria-expanded', 'false');
+      }
+    };
+    document.addEventListener('click', _closeAuthPanel);
+
     widget.querySelector('#auth-sign-out').addEventListener('click', async () => {
       if (TEST_MODE) {
         localStorage.removeItem('test_mode_email');

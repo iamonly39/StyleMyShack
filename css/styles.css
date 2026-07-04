@@ -2198,26 +2198,43 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 @media (max-width: 600px) {
   .paint-swatches { grid-template-columns: 1fr; }
 
-  /* Header: wrap into a tidy two-row layout instead of squashing one row.
-     Row 1 = back / logo / gallery (space-between); Row 2 = auth widget. */
+  /* Header: single-row now that auth collapses to a dot trigger. */
   .site-header { padding: 0.85rem 0; }
-  .site-header .container {
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: 0.5rem 0.75rem;
-  }
+  .site-header .container { gap: 0.75rem; }
   .site-header .logo { font-size: 1.3rem; }
   .header-back { margin-right: 0; }
-  .header-nav-link { margin-left: 0; }
-  .auth-widget {
-    order: 5;
-    width: 100%;
-    margin-left: 0;
-    justify-content: center;
-  }
 
-  /* Photo tabs: scroll horizontally with readable, tappable labels
-     instead of forcing four equal columns that truncate. */
+  /* Gallery nav hidden — bottom tab bar owns mobile navigation. */
+  .header-nav-link { display: none; }
+
+  /* Auth widget: compact trigger in row 1, dropdown panel on tap. */
+  .auth-widget {
+    order: unset;
+    width: auto;
+    margin-left: auto;
+    position: relative;
+    justify-content: flex-end;
+  }
+  .auth-menu-trigger { display: flex !important; }
+  .auth-widget .auth-menu-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: -0.75rem;
+    background: var(--bark-dark);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: var(--radius);
+    padding: 0.75rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    min-width: 180px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    z-index: 65;
+  }
+  .auth-widget .auth-menu-panel.open { display: flex; }
+
+  /* Photo tabs: scrollable instead of cramped equal columns. */
   .photo-tabs {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -2230,6 +2247,33 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
     font-size: 0.8rem;
     white-space: nowrap;
   }
+
+  /* Room nav strip: sticky below header + right-edge scroll hint. */
+  .room-nav-strip-wrap {
+    position: sticky;
+    top: var(--header-h, 56px);
+    z-index: 50;
+  }
+  .room-nav-strip-wrap::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; bottom: 0;
+    width: 48px;
+    background: linear-gradient(to right, transparent, var(--bark-dark));
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* Push page content above the fixed tab bar. */
+  body { padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px)); }
+
+  /* Save banner floats above the tab bar. */
+  .save-banner { bottom: calc(1.5rem + 56px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* Tighter email truncation on very small phones (inside dropdown). */
+@media (max-width: 360px) {
+  .auth-email { max-width: 120px; }
 }
 
 /* Comfortable touch targets on coarse pointers (touch devices) */
@@ -2317,6 +2361,39 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 .auth-signout-btn:hover {
   background: rgba(255, 255, 255, 0.18);
   color: var(--cream);
+}
+
+/* Auth collapse: trigger dot (mobile only) + panel wrapper. */
+.auth-menu-trigger {
+  display: none; /* shown on mobile via 600px query */
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px; /* 28px dot + 16px padding = 44px touch target */
+  border-radius: 50%;
+  transition: background var(--transition);
+  -webkit-tap-highlight-color: transparent;
+}
+.auth-menu-trigger:hover { background: rgba(255, 255, 255, 0.1); }
+
+.auth-trigger-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  display: block;
+}
+.auth-trigger-dot.auth-role-owner   { background: var(--bark); }
+.auth-trigger-dot.auth-role-builder { background: var(--bark-light); }
+.auth-trigger-dot.auth-role-viewer  { background: var(--stone); }
+
+/* On desktop the panel is the standard flex row; on mobile it's a dropdown. */
+.auth-menu-panel {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 
 /* ─── Sign-in Modal ──────────────────────────────────────────────────────── */
@@ -2662,3 +2739,52 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 .gp-empty { color: var(--stone); font-size: 0.875rem; font-style: italic; text-align: center; padding: 1.5rem; grid-column: 1 / -1; }
 .from-gallery-btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.55rem 1.1rem; background: var(--cream); border: 1px solid var(--bark-light); border-radius: 8px; color: var(--bark); font-family: system-ui, sans-serif; font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: var(--transition); }
 .from-gallery-btn:hover { background: var(--bark-light); color: white; }
+
+/* ─── Mobile Bottom Tab Bar ──────────────────────────────────────────────── */
+.mobile-tab-bar { display: none; }
+
+@media (max-width: 600px) {
+  .mobile-tab-bar {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 70;
+    background: var(--bark-dark);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .mtb-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 10px 4px 8px;
+    color: var(--stone-light);
+    text-decoration: none;
+    font-family: system-ui, sans-serif;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-top: 2px solid transparent;
+    transition: color var(--transition), border-top-color var(--transition);
+    -webkit-tap-highlight-color: transparent;
+    min-height: 56px;
+  }
+
+  .mtb-tab svg {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
+  .mtb-tab.mtb-active {
+    color: var(--cream);
+    border-top-color: var(--sage-light);
+  }
+}
