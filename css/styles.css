@@ -876,6 +876,8 @@ h3 { font-size: 1.1rem; font-weight: bold; font-family: system-ui, sans-serif; l
 }
 
 .item-photo-previewable { cursor: zoom-in; }
+.item-photo-upload-trigger { cursor: pointer; transition: opacity var(--transition); }
+.item-photo-upload-trigger:hover { opacity: 0.75; }
 
 .item-card-editing {
   border-color: var(--bark-light);

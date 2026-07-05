@@ -71,7 +71,6 @@ function closeColorPreview() {
 
 // ─── Constants ────────────────────────────────────────────────────────────
 const REC_CATEGORIES = [
-  { key: 'paint_items',     label: 'Paint',     ph: 'e.g. Benjamin Moore White Dove OC-17' },
   { key: 'flooring_items',  label: 'Flooring',  ph: 'e.g. Wide-plank white oak hardwood' },
   { key: 'lighting_items',  label: 'Lighting',  ph: 'e.g. Antler chandelier, 2700K bulbs' },
   { key: 'furniture_items', label: 'Furniture', ph: 'e.g. Oatmeal linen sectional' }
@@ -611,32 +610,23 @@ function buildViewPanel(rec) {
   let html = '';
   const isOwner = currentUser?.role === 'owner';
 
-  const gn = rec.general_notes || '';
-  // Non-owners: skip General Notes if empty
-  if (isOwner || gn.trim() !== '') {
-    html += `<div class="rec-section"><div class="rec-section-label">General Notes</div>`;
-    if (editingGeneralNotes) {
-      html += `<textarea class="edit-field" id="field-general_notes" rows="3"
-        placeholder="Any other notes…">${escHtml(gn)}</textarea>
-        <div class="inline-edit-actions">
-          <button class="inline-save-btn" id="save-gn-btn">✓ Save</button>
-          <button class="inline-cancel-btn" id="cancel-gn-btn">Cancel</button>
-        </div>`;
-    } else {
-      html += gn
-        ? `<div id="general-notes-text" class="rec-text${isOwner ? ' rec-text-editable' : ''}" ${isOwner ? 'data-edit-gn' : ''}>${escHtml(gn)}</div>`
-        : `<span id="general-notes-text" class="rec-empty rec-text-editable" data-edit-gn>No general notes yet — click to add.</span>`;
-    }
-    html += '</div>';
+  // Color Palettes — first
+  const swatch_sets     = rec.swatch_sets     || [];
+  const client_swatches = rec.client_swatches || [];
+  if (isOwner || swatch_sets.length > 0 || client_swatches.length > 0) {
+    html += `<div class="rec-section"><div class="rec-section-label">Color Palettes</div>
+      ${renderSwatchSets(swatch_sets)}
+    </div>`;
+    html += renderClientSwatches(client_swatches);
   }
 
+  // Item categories (Flooring, Lighting, Furniture)
   const orderedCats = getSectionOrder();
   orderedCats.forEach((cat, ci) => {
     const items  = rec[cat.key] || [];
-    // Non-owners: skip sections with no items
     if (!isOwner && items.length === 0) return;
 
-    const upDis  = ci === 0 ? 'disabled' : '';
+    const upDis   = ci === 0 ? 'disabled' : '';
     const downDis = ci === orderedCats.length - 1 ? 'disabled' : '';
     html += `<div class="rec-section">
       <div class="rec-section-header">
@@ -665,14 +655,23 @@ function buildViewPanel(rec) {
     html += '</div>';
   });
 
-  const swatch_sets     = rec.swatch_sets     || [];
-  const client_swatches = rec.client_swatches || [];
-  // Non-owners: skip Color Palettes if no content
-  if (isOwner || swatch_sets.length > 0 || client_swatches.length > 0) {
-    html += `<div class="rec-section"><div class="rec-section-label">Color Palettes</div>
-      ${renderSwatchSets(swatch_sets)}
-    </div>`;
-    html += renderClientSwatches(client_swatches);
+  // General Notes — last
+  const gn = rec.general_notes || '';
+  if (isOwner || gn.trim() !== '') {
+    html += `<div class="rec-section"><div class="rec-section-label">General Notes</div>`;
+    if (editingGeneralNotes) {
+      html += `<textarea class="edit-field" id="field-general_notes" rows="3"
+        placeholder="Any other notes…">${escHtml(gn)}</textarea>
+        <div class="inline-edit-actions">
+          <button class="inline-save-btn" id="save-gn-btn">✓ Save</button>
+          <button class="inline-cancel-btn" id="cancel-gn-btn">Cancel</button>
+        </div>`;
+    } else {
+      html += gn
+        ? `<div id="general-notes-text" class="rec-text${isOwner ? ' rec-text-editable' : ''}" ${isOwner ? 'data-edit-gn' : ''}>${escHtml(gn)}</div>`
+        : `<span id="general-notes-text" class="rec-empty rec-text-editable" data-edit-gn>No general notes yet — click to add.</span>`;
+    }
+    html += '</div>';
   }
 
   return html;
@@ -681,11 +680,13 @@ function buildViewPanel(rec) {
 function buildEditForm(rec) {
   let html = '';
 
-  html += `<div class="rec-section"><div class="rec-section-label">General Notes</div>
-    <textarea class="edit-field" id="field-general_notes" rows="3"
-      placeholder="Any other notes…">${escHtml(rec.general_notes || '')}</textarea>
+  // Color Palettes — first
+  html += `<div class="rec-section"><div class="rec-section-label">Color Palettes</div>
+    ${renderSwatchSets(rec.swatch_sets || [])}
   </div>`;
+  html += renderClientSwatches(rec.client_swatches || []);
 
+  // Item categories (Flooring, Lighting, Furniture)
   getSectionOrder().forEach((cat, ci, arr) => {
     const items   = rec[cat.key] || [];
     const upDis   = ci === 0 ? 'disabled' : '';
@@ -707,11 +708,12 @@ function buildEditForm(rec) {
     </div>`;
   });
 
-  html += `<div class="rec-section"><div class="rec-section-label">Color Palettes</div>
-    ${renderSwatchSets(rec.swatch_sets || [])}
+  // General Notes — last
+  html += `<div class="rec-section"><div class="rec-section-label">General Notes</div>
+    <textarea class="edit-field" id="field-general_notes" rows="3"
+      placeholder="Any other notes…">${escHtml(rec.general_notes || '')}</textarea>
   </div>`;
 
-  html += renderClientSwatches(rec.client_swatches || []);
   html += `<button class="save-btn" id="save-recs-btn">Save</button>`;
   return html;
 }
@@ -723,10 +725,21 @@ function renderItemCard(item, reactions, cat, idx) {
   const isOwner   = currentUser?.role === 'owner';
   const clickable = isOwner ? ' item-card-clickable' : '';
   const editAttrs = isOwner ? ` data-edit-cat="${cat}" data-edit-idx="${idx}"` : '';
+
+  let photoHtml;
+  if (hasPhoto) {
+    photoHtml = `<div class="item-photo item-photo-previewable"><img src="${escHtml(item.photo_url)}" alt="${escHtml(item.name)}"></div>`;
+  } else if (isOwner) {
+    photoHtml = `<label class="item-photo item-photo-empty item-photo-upload-trigger" for="item-upload-${cat}-${idx}" title="Upload photo">
+      📷
+      <input type="file" id="item-upload-${cat}-${idx}" accept="image/*" class="hidden-input item-photo-file" data-item-cat="${cat}" data-item-idx="${idx}">
+    </label>`;
+  } else {
+    photoHtml = `<div class="item-photo item-photo-empty">📷</div>`;
+  }
+
   return `<div class="item-card${clickable}"${editAttrs}>
-    <div class="item-photo${hasPhoto ? '' : ' item-photo-empty'} ${hasPhoto ? 'item-photo-previewable' : ''}">
-      ${hasPhoto ? `<img src="${escHtml(item.photo_url)}" alt="${escHtml(item.name)}">` : '📷'}
-    </div>
+    ${photoHtml}
     <div class="item-content">
       <div class="item-name">${escHtml(item.name || '—')}</div>
       ${hasNote ? `<div class="item-note">${escHtml(item.note)}</div>` : ''}
@@ -1133,9 +1146,30 @@ function setupEditToggle() {
 function setupInlineEditListeners() {
   const body = document.getElementById('rec-body');
 
+  // Item photo upload (📷 tap → file picker → Supabase storage)
+  body.querySelectorAll('.item-photo-file').forEach(input => {
+    input.addEventListener('change', async e => {
+      e.stopPropagation();
+      const file = input.files[0];
+      if (!file) return;
+      const cat = input.dataset.itemCat;
+      const idx = +input.dataset.itemIdx;
+      showBanner('Uploading…');
+      const path = `${roomData.id}/items/${Date.now()}-${file.name}`;
+      const { error } = await sb.storage.from('room-photos').upload(path, file);
+      if (error) { showBanner('Upload failed — try again.'); return; }
+      const url = sb.storage.from('room-photos').getPublicUrl(path).data.publicUrl;
+      roomData.recommendations[cat][idx].photo_url = url;
+      await persistRecs();
+      showBanner('Photo saved!');
+      renderRecommendations();
+    });
+  });
+
   body.querySelectorAll('.item-card-clickable').forEach(card => {
     card.addEventListener('click', e => {
       if (e.target.closest('.reaction-strip, .item-link-btn')) return;
+      if (e.target.closest('.item-photo-upload-trigger')) return; // let label open file picker
       if (e.target.closest('.item-photo-previewable')) {
         const img = card.querySelector('.item-photo img');
         if (img) openLightbox(img.src);
